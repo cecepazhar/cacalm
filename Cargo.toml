@@ -1,0 +1,36 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/calm-core",
+    "crates/calm-app",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["Cecep Saeful Azhar Hidayat <cecep.azhtech@gmail.com>"]
+license = "MIT"
+repository = "https://github.com/cecepazhar/cacalm"
+
+[workspace.dependencies]
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+directories = "5"
+chrono = "0.4"
+uuid = { version = "1.16", features = ["v4", "v7"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+parking_lot = "0.12"
+rodio = { version = "0.20", default-features = false }
+symphonia = { version = "0.5", features = ["mp3", "flac", "vorbis", "wav"] }
+
+[profile.release]
+opt-level = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+panic = "unwind"
