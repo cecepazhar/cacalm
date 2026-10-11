@@ -10,6 +10,14 @@ description = "CACalm core library — multi-channel ambient audio engine, Pomod
 name = "calm_core"
 path = "src/lib.rs"
 
+[features]
+default = ["stub-audio"]
+# Real audio playback requires system audio headers (alsa-lib-devel on Fedora).
+# Enable with `--features audio` once libasound2-dev/alsa-lib-devel is installed.
+audio = ["dep:rodio", "dep:cpal"]
+# Compiles the pure logic (timer, library, presets) without any audio backend.
+stub-audio = []
+
 [dependencies]
 thiserror.workspace = true
 serde.workspace = true
@@ -20,4 +28,5 @@ uuid.workspace = true
 rusqlite.workspace = true
 tokio.workspace = true
 parking_lot.workspace = true
-rodio.workspace = true
+rodio = { version = "0.20", default-features = false, optional = true }
+cpal = { version = "0.15", optional = true }

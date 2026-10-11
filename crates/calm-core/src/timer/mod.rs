@@ -95,6 +95,11 @@ impl PomodoroTimer {
         self.config
     }
 
+    pub fn set_config(&mut self, config: TimerConfig) {
+        self.config = config;
+        self.remaining = self.phase_duration();
+    }
+
     pub fn pause(&mut self) {
         self.paused = true;
     }
@@ -121,15 +126,13 @@ impl PomodoroTimer {
     }
 
     /// Advance the clock by `elapsed`. Returns the events that occurred, in
-    /// order. A single call may span a phase boundary; it will not overshoot
-    /// by more than one phase per call.
+    /// order.
     pub fn tick(&mut self, elapsed: Duration) -> Vec<TimerEvent> {
         let mut events = Vec::new();
         if self.paused || elapsed.is_zero() {
             return events;
         }
 
-        // Accumulate focus time for stats.
         if self.phase == Phase::Focus {
             self.focus_seconds_today += elapsed.as_secs();
         }
@@ -152,9 +155,7 @@ impl PomodoroTimer {
 
     /// Force-move to the next phase (Skip button).
     pub fn skip(&mut self) -> TimerEvent {
-        let completed = self.phase;
         self.advance_phase();
-        let _ = completed;
         TimerEvent::PhaseStarted(self.phase)
     }
 
@@ -244,5 +245,15 @@ mod tests {
         assert_eq!(t.phase(), Phase::ShortBreak);
         t.skip();
         assert_eq!(t.phase(), Phase::Focus);
+    }
+
+    #[test]
+    fn custom_config_is_applied() {
+        let mut t = PomodoroTimer::new(cfg());
+        t.set_config(TimerConfig {
+            focus: Duration::from_secs(10 * 60),
+            ..cfg()
+        });
+        assert_eq!(t.remaining(), Duration::from_secs(600));
     }
 }

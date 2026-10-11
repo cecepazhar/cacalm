@@ -1,1 +1,36 @@
-/target
+# Dependencies
+node_modules/
+pnpm-lock.yaml
+yarn.lock
+package-lock.json
+
+# Build outputs
+dist/
+build/
+.tauri/
+.svelte-kit/
+output/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Rust
+target/
+**/*.rs.bk
+*.crate
+
+# Logs
+*.log
+logs/

@@ -62,7 +62,7 @@ impl PresetManager {
     }
 
     pub fn list(&self) -> Result<Vec<Preset>, PresetError> {
-        let mut presets = Vec::new();
+        let mut presets: Vec<Preset> = Vec::new();
         if let Ok(entries) = fs::read_dir(&self.presets_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();

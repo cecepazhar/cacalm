@@ -1,0 +1,20 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ca-bg: #0a0a0c;
+  --color-ca-surface: #111827;
+  --color-ca-border: #272732;
+  --color-ca-muted: #64748b;
+  --color-ca-text: #f8fafc;
+  --color-ca-brand: #10b981;
+  --color-ca-brand-hover: #059669;
+}
+
+* {
+  border-color: theme('colors.ca-border');
+}
+
+body {
+  background-color: theme('colors.ca-bg');
+  color: theme('colors.ca-text');
+}

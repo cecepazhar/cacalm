@@ -14,7 +14,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-calm-core = { path = "../calm-core" }
+calm-core = { path = "../calm-core", default-features = false }
 tauri = { version = "2", features = [] }
 serde.workspace = true
 serde_json.workspace = true
