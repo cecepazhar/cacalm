@@ -1,14 +1,5 @@
 use calm_core::{AudioEngine, PomodoroTimer, PresetManager, SoundLibrary};
-use serde::Serialize;
 use std::sync::Mutex;
-
-#[derive(Serialize, Clone)]
-pub struct TimerSnapshot {
-    pub phase: String,
-    pub remaining: u64,
-    pub paused: bool,
-    pub sessions_today: u32,
-}
 
 /// Tauri managed state — holds the live engine instances.
 pub struct AppState {
@@ -35,17 +26,21 @@ impl Default for AppState {
     }
 }
 
-/// Get current timer state (placeholder — will be wired to real timer in T3)
-#[tauri::command]
-fn get_timer_snapshot(state: tauri::State<'_, AppState>) -> Result<TimerSnapshot, String> {
-    let timer = state
-        .timer
-        .lock()
-        .map_err(|e| e.to_string())?;
-    Ok(TimerSnapshot {
-        phase: timer.phase().label().to_string(),
-        remaining: timer.remaining().as_secs(),
-        paused: timer.is_paused(),
-        sessions_today: timer.sessions_today,
-    })
+mod commands;
+
+pub use commands::get_timer_snapshot;
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_process::init())
+        .manage(AppState::new())
+        .invoke_handler(tauri::generate_handler![commands::get_timer_snapshot]);
+
+    builder
+        .run(tauri::generate_context!())
+        .expect("error while running CACalm");
 }
+

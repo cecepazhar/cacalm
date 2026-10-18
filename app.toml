@@ -1,0 +1,50 @@
+[app]
+name = "CACalm"
+slug = "cacalm"
+bundle_id = "com.fathforce.cacalm"
+version = "0.1.1"
+accent_color = "teal"
+error_prefix = "CALM"
+description = "Ambient sound mixer, Pomodoro focus timer & multi-track acoustic workspace."
+brand = "CACalm"
+
+[window]
+title = "CACalm"
+width = 1100
+height = 760
+min_width = 360
+min_height = 500
+
+[modules]
+timer_enabled = true
+ambient_enabled = true
+library_enabled = true
+preset_enabled = true
+
+[[menus]]
+key = "mixer"
+label = "Ambient Mixer"
+href = "/"
+icon = "headphones"
+description = "Multi-channel ambient audio generator & volume controls"
+
+[[menus]]
+key = "timer"
+label = "Focus Timer"
+href = "/timer"
+icon = "clock"
+description = "Pomodoro cadence timer & daily focus tracking"
+
+[[menus]]
+key = "library"
+label = "Sound Library"
+href = "/library"
+icon = "disc"
+description = "Local sound clips & natural acoustic environment library"
+
+[[menus]]
+key = "settings"
+label = "Settings"
+href = "/settings"
+icon = "settings"
+description = "Audio output device & timer preferences"

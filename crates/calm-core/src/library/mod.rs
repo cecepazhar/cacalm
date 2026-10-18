@@ -10,6 +10,7 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SoundEntry {
@@ -30,14 +31,13 @@ pub enum LibraryError {
 }
 
 pub struct SoundLibrary {
-    conn: Connection,
+    conn: Mutex<Connection>,
     sounds_dir: PathBuf,
 }
 
 impl SoundLibrary {
     /// Opens (creating if needed) the library database and sounds directory.
-    pub fn open() -> Result<Self, LibraryError> {
-        let data_dir = app_data_dir().map_err(|e| LibraryError::Io(e.to_string()))?;
+    pub fn open() -> Result<Self, LibraryError> {        let data_dir = app_data_dir().map_err(|e| LibraryError::Io(e.to_string()))?;
         let sounds_dir = data_dir.join("sounds");
         fs::create_dir_all(&sounds_dir).map_err(|e| LibraryError::Io(e.to_string()))?;
 
@@ -59,7 +59,7 @@ impl SoundLibrary {
         )
         .map_err(|e| LibraryError::Db(e.to_string()))?;
 
-        Ok(Self { conn, sounds_dir })
+        Ok(Self { conn: Mutex::new(conn), sounds_dir })
     }
 
     /// Copy `source` into the library and record it. Returns the new entry.
@@ -82,27 +82,27 @@ impl SoundLibrary {
             imported_at: chrono::Utc::now().timestamp(),
         };
 
-        self.conn
-            .execute(
-                "INSERT INTO sounds (id, name, category, duration_secs, file_name, imported_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                params![
-                    entry.id,
-                    entry.name,
-                    entry.category,
-                    entry.duration_secs,
-                    entry.file_name,
-                    entry.imported_at
-                ],
-            )
-            .map_err(|e| LibraryError::Db(e.to_string()))?;
+        let conn = self.conn.lock().map_err(|e| LibraryError::Db(e.to_string()))?;
+        conn.execute(
+            "INSERT INTO sounds (id, name, category, duration_secs, file_name, imported_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                entry.id,
+                entry.name,
+                entry.category,
+                entry.duration_secs,
+                entry.file_name,
+                entry.imported_at
+            ],
+        )
+        .map_err(|e| LibraryError::Db(e.to_string()))?;
 
         Ok(entry)
     }
 
     pub fn list(&self) -> Result<Vec<SoundEntry>, LibraryError> {
-        let mut stmt = self
-            .conn
+        let conn = self.conn.lock().map_err(|e| LibraryError::Db(e.to_string()))?;
+        let mut stmt = conn
             .prepare(
                 "SELECT id, name, category, duration_secs, file_name, imported_at
                  FROM sounds ORDER BY imported_at DESC",
@@ -136,15 +136,14 @@ impl SoundLibrary {
 
     /// Delete an entry and its underlying file.
     pub fn delete(&self, id: &str) -> Result<(), LibraryError> {
-        let file_name: Option<String> = self
-            .conn
+        let conn = self.conn.lock().map_err(|e| LibraryError::Db(e.to_string()))?;
+        let file_name: Option<String> = conn
             .query_row("SELECT file_name FROM sounds WHERE id = ?1", params![id], |r| r.get(0))
             .ok();
         if let Some(f) = file_name {
             let _ = fs::remove_file(self.sounds_dir.join(f));
         }
-        self.conn
-            .execute("DELETE FROM sounds WHERE id = ?1", params![id])
+        conn.execute("DELETE FROM sounds WHERE id = ?1", params![id])
             .map_err(|e| LibraryError::Db(e.to_string()))?;
         Ok(())
     }

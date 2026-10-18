@@ -1,15 +1,10 @@
-mod commands;
-mod lib;
-
-use commands::get_timer_snapshot;
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_process::init())
-        .manage(lib::AppState::new())
-        .invoke_handler(tauri::generate_handler![get_timer_snapshot])
-        .run(tauri::generate_context!())
-        .expect("error while running CACalm");
+    let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|a| a == "--version" || a == "-V" || a == "-v") {
+        println!("cacalm {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
+    calm_app_lib::run();
 }
