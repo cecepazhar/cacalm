@@ -6,5 +6,5 @@ pub mod paths;
 
 pub use audio::{AudioEngine, ChannelId};
 pub use timer::{PomodoroTimer, Phase, TimerEvent, TimerConfig};
-pub use library::SoundLibrary;
+pub use library::{SoundLibrary, SoundEntry};
 pub use preset::{PresetManager, Preset};
