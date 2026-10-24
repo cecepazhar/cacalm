@@ -4,8 +4,7 @@
   "version": "0.1.1",
   "identifier": "com.fathforce.cacalm",
   "build": {
-    "frontendDist": "../../frontend/build",
-    "devUrl": "http://localhost:1420"
+    "frontendDist": "../../frontend/build"
   },
   "app": {
     "windows": [
