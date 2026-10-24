@@ -28,5 +28,8 @@ uuid.workspace = true
 rusqlite.workspace = true
 tokio.workspace = true
 parking_lot.workspace = true
-rodio = { version = "0.20", default-features = false, optional = true }
+sha2.workspace = true
+hmac.workspace = true
+hex.workspace = true
+rodio = { version = "0.20", default-features = false, features = ["wav", "vorbis", "flac"], optional = true }
 cpal = { version = "0.15", optional = true }

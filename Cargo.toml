@@ -24,6 +24,9 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"
 parking_lot = "0.12"
 rodio = { version = "0.20", default-features = false }
 cpal = "0.15"
+sha2 = "0.10"
+hmac = "0.12"
+hex = "0.4"
 
 [profile.release]
 opt-level = "z"

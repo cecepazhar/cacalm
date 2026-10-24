@@ -1,5 +1,5 @@
 use crate::{settings::AppSettings, AppState};
-use calm_core::{Preset, SoundEntry};
+use calm_core::{Preset, ProStatus, SoundEntry};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::time::Duration;
@@ -270,5 +270,228 @@ pub fn set_tray_enabled(
 pub fn minimize_to_tray(app: tauri::AppHandle) {
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.hide();
+    }
+}
+
+// --- Audio Engine IPC Commands ---
+
+fn resolve_channel_audio_path(
+    channel_id: &str,
+    lib: Option<&calm_core::SoundLibrary>,
+) -> Option<String> {
+    // 1. Direct file path check
+    let direct_path = std::path::Path::new(channel_id);
+    if direct_path.is_file() {
+        return Some(direct_path.to_string_lossy().to_string());
+    }
+
+    // 2. Default channel ID to file name mapping
+    let default_filename = match channel_id {
+        "ch-rain" | "rain" => Some("rain.wav"),
+        "ch-waves" | "waves" | "ocean waves" => Some("waves.wav"),
+        "ch-birds" | "birds" | "forest birds" => Some("birds.wav"),
+        "ch-cafe" | "cafe" | "coffee shop" => Some("cafe.wav"),
+        "ch-fire" | "fire" | "fireplace" => Some("fire.wav"),
+        "ch-wind" | "wind" => Some("wind.wav"),
+        "ch-stream" | "stream" => Some("stream.wav"),
+        "ch-noise" | "noise" | "brown noise" => Some("noise.wav"),
+        _ => None,
+    };
+
+    if let Some(lib) = lib {
+        let sounds_dir = lib.sounds_dir();
+
+        if let Some(fname) = default_filename {
+            let p = sounds_dir.join(fname);
+            if p.is_file() {
+                return Some(p.to_string_lossy().to_string());
+            }
+        }
+
+        let p_exact = sounds_dir.join(channel_id);
+        if p_exact.is_file() {
+            return Some(p_exact.to_string_lossy().to_string());
+        }
+
+        let p_wav = sounds_dir.join(format!("{channel_id}.wav"));
+        if p_wav.is_file() {
+            return Some(p_wav.to_string_lossy().to_string());
+        }
+
+        if let Ok(Some(entry)) = lib.get_sound_by_id(channel_id) {
+            let p = lib.path_for(&entry);
+            if p.is_file() {
+                return Some(p.to_string_lossy().to_string());
+            }
+        }
+    } else if let Ok(data_dir) = calm_core::paths::app_data_dir() {
+        let sounds_dir = data_dir.join("sounds");
+        if let Some(fname) = default_filename {
+            let p = sounds_dir.join(fname);
+            if p.is_file() {
+                return Some(p.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    None
+}
+
+#[tauri::command]
+pub fn play_channel(
+    state: tauri::State<'_, AppState>,
+    channel_id: String,
+    volume: f32,
+) -> Result<(), String> {
+    let engine = state.engine.as_ref().map_err(|e| e.clone())?;
+    let ch_id = calm_core::ChannelId::from_string(&channel_id);
+    let lib = state.library.as_ref().ok();
+    let source_path = resolve_channel_audio_path(&channel_id, lib).unwrap_or_default();
+    engine
+        .play_channel(&ch_id, &channel_id, &source_path, volume)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn stop_channel(
+    state: tauri::State<'_, AppState>,
+    channel_id: String,
+) -> Result<(), String> {
+    let engine = state.engine.as_ref().map_err(|e| e.clone())?;
+    let ch_id = calm_core::ChannelId::from_string(channel_id);
+    engine.stop_channel(&ch_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_channel_volume(
+    state: tauri::State<'_, AppState>,
+    channel_id: String,
+    volume: f32,
+) -> Result<(), String> {
+    let engine = state.engine.as_ref().map_err(|e| e.clone())?;
+    let ch_id = calm_core::ChannelId::from_string(channel_id);
+    engine.set_channel_volume(&ch_id, volume);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_master_volume(
+    state: tauri::State<'_, AppState>,
+    volume: f32,
+) -> Result<(), String> {
+    let engine = state.engine.as_ref().map_err(|e| e.clone())?;
+    engine.set_master_volume(volume);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn set_channel_pan(
+    state: tauri::State<'_, AppState>,
+    channel_id: String,
+    pan: f32,
+) -> Result<(), String> {
+    let engine = state.engine.as_ref().map_err(|e| e.clone())?;
+    let ch_id = calm_core::ChannelId::from_string(channel_id);
+    engine.set_channel_pan(&ch_id, pan);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn list_active_channels(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    let engine = state.engine.as_ref().map_err(|e| e.clone())?;
+    Ok(engine.list_active_channel_ids())
+}
+
+// --- Pro Licensing (Free vs Pro) ---
+
+#[tauri::command]
+pub fn get_pro_status() -> Result<ProStatus, String> {
+    Ok(calm_core::get_pro_status())
+}
+
+#[tauri::command]
+pub fn activate_pro_license(license_key: String) -> Result<ProStatus, String> {
+    calm_core::activate_license(&license_key)
+}
+
+#[tauri::command]
+pub fn deactivate_pro_license() -> Result<(), String> {
+    calm_core::deactivate_license()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pro_commands_contract() {
+        // Querying pro status returns a valid Result
+        let status = get_pro_status().expect("get_pro_status should return Ok");
+        // By default on clean state, plan should be string and is_pro is boolean
+        assert!(!status.plan.is_empty());
+
+        // Activating an invalid key returns an Err
+        let err_res = activate_pro_license("INVALID-KEY-12345".to_string());
+        assert!(err_res.is_err());
+
+        // Deactivating returns Ok(())
+        let deact_res = deactivate_pro_license();
+        assert!(deact_res.is_ok());
+    }
+
+    #[test]
+    fn test_resolve_channel_audio_path_mapping() {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let tmp = std::env::temp_dir().join(format!("cacalm-resolve-test-{nanos}"));
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        let lib = calm_core::SoundLibrary::open_at(tmp.clone()).unwrap();
+        // ensure_default_sounds is called in open_at, so rain.wav exists
+        let rain_path = resolve_channel_audio_path("ch-rain", Some(&lib));
+        assert!(rain_path.is_some(), "ch-rain should resolve to rain.wav");
+        assert!(rain_path.unwrap().ends_with("rain.wav"));
+
+        let waves_path = resolve_channel_audio_path("ocean waves", Some(&lib));
+        assert!(waves_path.is_some());
+        assert!(waves_path.unwrap().ends_with("waves.wav"));
+
+        let unknown = resolve_channel_audio_path("unknown-sound-xyz", Some(&lib));
+        assert!(unknown.is_none());
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_audio_engine_channel_operations() {
+        if let Ok(engine) = calm_core::AudioEngine::new() {
+            let nanos = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            let tmp = std::env::temp_dir().join(format!("cacalm-cmd-test-{nanos}"));
+            let default_sounds = calm_core::audio::synth::ensure_default_sounds(&tmp).unwrap();
+            let (_, path) = &default_sounds[0];
+
+            let ch = calm_core::ChannelId::from("ch-rain");
+            assert!(engine.play_channel(&ch, "Rain", path.to_str().unwrap(), 0.7).is_ok());
+            assert_eq!(engine.channel_count(), 1);
+
+            engine.set_channel_volume(&ch, 0.4);
+            engine.set_channel_pan(&ch, 0.8);
+            engine.set_master_volume(0.9);
+
+            let active = engine.list_active_channel_ids();
+            assert_eq!(active, vec!["ch-rain".to_string()]);
+
+            assert!(engine.stop_channel(&ch).is_ok());
+            assert_eq!(engine.channel_count(), 0);
+
+            let _ = std::fs::remove_dir_all(&tmp);
+        }
     }
 }

@@ -8,9 +8,11 @@ pub mod shortcuts;
 pub mod tray;
 
 pub use commands::{
-    delete_preset, delete_sound, get_app_version, get_settings, get_timer_snapshot, import_sound,
-    list_presets, list_sounds, load_preset, minimize_to_tray, open_main_window, save_preset,
-    set_shortcuts_enabled, set_tray_enabled, timer_pause, timer_reset, timer_resume, timer_skip,
+    activate_pro_license, deactivate_pro_license, delete_preset, delete_sound, get_app_version,
+    get_pro_status, get_settings, get_timer_snapshot, import_sound, list_active_channels,
+    list_presets, list_sounds, load_preset, minimize_to_tray, open_main_window, play_channel,
+    save_preset, set_channel_pan, set_channel_volume, set_master_volume, set_shortcuts_enabled,
+    set_tray_enabled, stop_channel, timer_pause, timer_reset, timer_resume, timer_skip,
     timer_tick, toggle_shortcuts, toggle_timer_state, toggle_tray, update_settings,
 };
 
@@ -68,6 +70,13 @@ pub fn run() {
                 eprintln!("Failed to register global shortcuts: {e}");
             }
 
+            {
+                let state = handle.state::<AppState>();
+                if let Ok(ref lib) = state.library {
+                    let _ = lib.seed_default_sounds();
+                }
+            }
+
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -107,7 +116,16 @@ pub fn run() {
             commands::toggle_shortcuts,
             commands::set_shortcuts_enabled,
             commands::set_tray_enabled,
-            commands::minimize_to_tray
+            commands::minimize_to_tray,
+            commands::play_channel,
+            commands::stop_channel,
+            commands::set_channel_volume,
+            commands::set_master_volume,
+            commands::set_channel_pan,
+            commands::list_active_channels,
+            commands::get_pro_status,
+            commands::activate_pro_license,
+            commands::deactivate_pro_license
         ]);
 
     builder

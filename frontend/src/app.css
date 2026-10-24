@@ -1,20 +1,74 @@
 @import "tailwindcss";
+@source "../../caui/src/**/*.{svelte,ts}";
 
-@theme {
-  --color-ca-bg: #0a0a0c;
-  --color-ca-surface: #111827;
-  --color-ca-border: #272732;
-  --color-ca-muted: #64748b;
-  --color-ca-text: #f8fafc;
-  --color-ca-brand: #10b981;
-  --color-ca-brand-hover: #059669;
+button, [role="button"], a, input[type="submit"], input[type="button"], select {
+  cursor: pointer;
 }
 
-* {
-  border-color: theme('colors.ca-border');
+[data-tauri-drag-region] {
+  -webkit-app-region: drag;
+}
+
+button, input, textarea, a, select, [role="button"], .no-drag {
+  -webkit-app-region: no-drag;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  /* Master CAUI Design System Tokens (Light Mode Default) */
+  --ca-brand: #10b981;
+  --ca-brand-glow: rgba(16, 185, 129, 0.2);
+  --ca-canvas: #f8fafc;
+  --ca-surface: #ffffff;
+  --ca-surface-base: #ffffff;
+  --ca-surface-elevated: #f1f5f9;
+  --ca-surface-subtle: #e2e8f0;
+  --ca-border: #cbd5e1;
+  --ca-border-hover: #94a3b8;
+
+  --ca-text-primary: #0f172a;
+  --ca-text-secondary: #475569;
+  --ca-text-muted: #64748b;
+
+  --ca-danger: #f43f5e;
+  --ca-success: #10b981;
+  --ca-warning: #f59e0b;
+  --ca-info: #06b6d4;
+
+  --ca-radius-sm: 6px;
+  --ca-radius-md: 8px;
+  --ca-radius-lg: 12px;
+  --ca-radius-xl: 16px;
+
+  color-scheme: light;
+}
+
+html.dark {
+  /* Master CAUI Design System Tokens (Dark Mode) */
+  --ca-brand: #10b981;
+  --ca-brand-glow: rgba(16, 185, 129, 0.2);
+  --ca-canvas: #09090b;
+  --ca-surface: #0e0e12;
+  --ca-surface-base: #0a0a0c;
+  --ca-surface-elevated: #15151c;
+  --ca-surface-subtle: #1c1c26;
+  --ca-border: #272732;
+  --ca-border-hover: #3f3f4e;
+
+  --ca-text-primary: #ededed;
+  --ca-text-secondary: #a1a1aa;
+  --ca-text-muted: #71717a;
+
+  color-scheme: dark;
 }
 
 body {
-  background-color: theme('colors.ca-bg');
-  color: theme('colors.ca-text');
+  background-color: var(--ca-canvas);
+  color: var(--ca-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  overflow: hidden;
+  user-select: none;
+  margin: 0;
+  padding: 0;
 }
