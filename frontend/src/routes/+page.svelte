@@ -356,7 +356,7 @@
   const activeChannelCount = $derived(channels.filter((c) => c.active).length);
 </script>
 
-<div class={`flex-1 flex flex-col h-full bg-[var(--ca-canvas)] text-[var(--ca-text-primary)] overflow-y-auto p-6 space-y-6 transition-all duration-300 ${isDistractionShield ? 'backdrop-blur-xl bg-black/95' : ''}`}>
+<div class={`flex-1 min-h-full w-full bg-[var(--ca-canvas)] text-[var(--ca-text-primary)] overflow-y-auto p-4 md:p-6 space-y-6 transition-all duration-300 ${isDistractionShield ? 'backdrop-blur-xl bg-black/95' : ''}`}>
   <!-- Single Page Action Bar (Double header removed!) -->
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--ca-border)] pb-4">
     <div>
@@ -416,11 +416,11 @@
   </div>
 
   <!-- Pomodoro Focus Timer Section -->
-  <div class="p-6 rounded-2xl bg-[var(--ca-surface)] border border-[var(--ca-border)] flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm relative overflow-hidden transition-colors">
-    <div class="flex items-center gap-6 z-10">
+  <div class="p-4 md:p-6 rounded-2xl bg-[var(--ca-surface)] border border-[var(--ca-border)] flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 shadow-sm relative transition-colors shrink-0">
+    <div class="flex items-center gap-4 md:gap-6 z-10 shrink-0">
       <!-- Circular Progress Ring (SVG) -->
-      <div class="relative w-28 h-28 flex items-center justify-center shrink-0">
-        <svg class="w-full h-full -rotate-90" viewBox="0 0 100 100">
+      <div class="relative w-24 md:w-28 h-24 md:h-28 flex items-center justify-center shrink-0">
+        <svg class="w-full h-full -rotate-90 overflow-visible" viewBox="0 0 100 100">
           <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" class="text-[var(--ca-surface-subtle)]" stroke-width="8" />
           <circle
             cx="50"
@@ -435,19 +435,19 @@
             class="transition-all duration-500"
           />
         </svg>
-        <div class="absolute flex flex-col items-center justify-center text-center">
-          <span class="text-xl font-bold font-mono text-[var(--ca-text-primary)] tracking-tight">
+        <div class="absolute flex flex-col items-center justify-center text-center w-full h-full px-1 py-0.5">
+          <span class="text-lg md:text-xl font-bold font-mono text-[var(--ca-text-primary)] tracking-tight">
             {formatTime(timerState.remaining)}
           </span>
-          <span class="text-[9px] font-mono text-[var(--ca-brand)] uppercase tracking-widest font-semibold">
+          <span class="text-[8px] md:text-[9px] font-mono text-[var(--ca-brand)] uppercase tracking-widest font-semibold">
             {timerState.phase}
           </span>
         </div>
       </div>
 
       <!-- Timer Info & Stats -->
-      <div class="space-y-1.5 z-10">
-        <div class="flex items-center gap-2">
+      <div class="space-y-1.5 z-10 flex-shrink min-w-0">
+        <div class="flex items-center gap-2 flex-wrap">
           <Badge variant={timerState.phase === 'FOCUS' ? 'brand' : 'warning'} size="xs">
             {timerState.phase}
           </Badge>
@@ -472,7 +472,7 @@
     </div>
 
     <!-- Timer Control Buttons -->
-    <div class="flex items-center gap-2.5 z-10">
+    <div class="flex items-center gap-2.5 z-10 flex-wrap">
       <Button
         variant={timerState.paused ? 'brand' : 'secondary'}
         size="md"
