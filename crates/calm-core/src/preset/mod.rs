@@ -65,12 +65,11 @@ impl PresetManager {
         if let Ok(entries) = fs::read_dir(&self.presets_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if path.extension().map_or(false, |ext| ext == "json") {
-                    if let Ok(json) = fs::read_to_string(&path) {
-                        if let Ok(preset) = serde_json::from_str(&json) {
-                            presets.push(preset);
-                        }
-                    }
+                if path.extension().is_some_and(|ext| ext == "json")
+                    && let Ok(json) = fs::read_to_string(&path)
+                    && let Ok(preset) = serde_json::from_str(&json)
+                {
+                    presets.push(preset);
                 }
             }
         }

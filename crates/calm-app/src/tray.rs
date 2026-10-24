@@ -3,7 +3,7 @@ use crate::settings::AppSettings;
 use tauri::{
     menu::MenuBuilder,
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Manager, Runtime,
+    AppHandle, Runtime,
 };
 
 pub const TRAY_ID: &str = "cacalm-tray";
@@ -108,7 +108,7 @@ pub fn setup_tray<R: Runtime>(
             if let Some(action) = TrayAction::from_id(event.id.as_ref()) {
                 match action {
                     TrayAction::ToggleFocus => {
-                        crate::toggle_timer_state(app);
+                        let _ = crate::toggle_timer_state(app);
                     }
                     TrayAction::OpenApp => {
                         crate::open_main_window(app);

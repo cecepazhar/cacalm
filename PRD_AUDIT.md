@@ -14,8 +14,8 @@
 | F3 | Import & library (drag-drop, metadata SQLite) | ⚠️ | `library/mod.rs` SoundLibrary metadata; tanpa UI import |
 | F4 | Preset system (save/load, bundled) | ✅ | `preset/mod.rs` (JSON, 5 bundled) |
 | F5 | Pomodoro timer (FOCUS/SHORT/LONG, injectable clock) | ✅ | `timer/mod.rs` |
-| F6 | Tray control (minimize-to-tray, quick controls) | ❌ | Tak ada tray module |
-| F7 | Keyboard shortcuts (global/local) | ❌ | Tak ada shortcut module |
+| F6 | Tray control (minimize-to-tray, quick controls) | ✅ | `tray.rs` (TrayIconBuilder, menu Start/Pause, Open, Exit, tooltip) |
+| F7 | Keyboard shortcuts (global/local) | ✅ | `shortcuts.rs` (tauri-plugin-global-shortcut, Ctrl+Alt+C/L, settings toggle) |
 | F8 | CAFramework integration (vault, prefs, i18n, CADS) | ❌ | Belum ter-integrasi |
 
 **Frontend = 3 file svelte**: `+layout.svelte`, `+page.svelte`, `PageHeader.svelte`. Scaffold, bukan produk.

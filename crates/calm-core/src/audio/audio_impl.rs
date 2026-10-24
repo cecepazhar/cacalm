@@ -109,14 +109,12 @@ impl AudioEngine {
     ) -> Result<ChannelId, AudioError> {
         let mut channels = self.channels.lock();
 
-        if channels.len() >= MAX_CHANNELS {
-            if let Some(oldest) = channels.keys().next().cloned() {
-                if let Some(state) = channels.remove(&oldest) {
-                    if let Some(sink) = state.sink {
-                        sink.stop();
-                    }
-                }
-            }
+        if channels.len() >= MAX_CHANNELS
+            && let Some(oldest) = channels.keys().next().cloned()
+            && let Some(state) = channels.remove(&oldest)
+            && let Some(sink) = state.sink
+        {
+            sink.stop();
         }
 
         let file = File::open(source_path).map_err(|e| AudioError::Open(e.to_string()))?;
@@ -156,22 +154,22 @@ impl AudioEngine {
     pub fn set_channel_gain(&self, channel: &ChannelId, gain: f32) {
         let master = *self.master_volume.lock();
         let mut channels = self.channels.lock();
-        if let Some(state) = channels.get_mut(channel) {
+        if let Some(state) = channels.get_mut(channel)
+            && let Some(sink) = &mut state.sink
+        {
             state.gain = gain.clamp(0.0, 1.0);
-            if let Some(sink) = &mut state.sink {
-                sink.set_volume(effective_volume(state.gain, state.muted, master));
-            }
+            sink.set_volume(effective_volume(state.gain, state.muted, master));
         }
     }
 
     pub fn set_channel_muted(&self, channel: &ChannelId, muted: bool) {
         let master = *self.master_volume.lock();
         let mut channels = self.channels.lock();
-        if let Some(state) = channels.get_mut(channel) {
+        if let Some(state) = channels.get_mut(channel)
+            && let Some(sink) = &mut state.sink
+        {
             state.muted = muted;
-            if let Some(sink) = &mut state.sink {
-                sink.set_volume(effective_volume(state.gain, state.muted, master));
-            }
+            sink.set_volume(effective_volume(state.gain, state.muted, master));
         }
     }
 
@@ -188,28 +186,28 @@ impl AudioEngine {
 
     pub fn pause_channel(&self, channel: &ChannelId) {
         let channels = self.channels.lock();
-        if let Some(state) = channels.get(channel) {
-            if let Some(sink) = &state.sink {
-                sink.pause();
-            }
+        if let Some(state) = channels.get(channel)
+            && let Some(sink) = &state.sink
+        {
+            sink.pause();
         }
     }
 
     pub fn resume_channel(&self, channel: &ChannelId) {
         let channels = self.channels.lock();
-        if let Some(state) = channels.get(channel) {
-            if let Some(sink) = &state.sink {
-                sink.play();
-            }
+        if let Some(state) = channels.get(channel)
+            && let Some(sink) = &state.sink
+        {
+            sink.play();
         }
     }
 
     pub fn close_channel(&self, channel: &ChannelId) {
         let mut channels = self.channels.lock();
-        if let Some(state) = channels.remove(channel) {
-            if let Some(sink) = state.sink {
-                sink.stop();
-            }
+        if let Some(state) = channels.remove(channel)
+            && let Some(sink) = state.sink
+        {
+            sink.stop();
         }
     }
 

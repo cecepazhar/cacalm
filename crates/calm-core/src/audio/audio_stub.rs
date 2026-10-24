@@ -1,5 +1,3 @@
-use parking_lot::Mutex;
-use std::collections::HashMap;
 use uuid::Uuid;
 
 /// Stub implementation when `audio` feature is disabled.

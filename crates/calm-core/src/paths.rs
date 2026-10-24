@@ -7,10 +7,7 @@ use std::path::PathBuf;
 pub fn app_data_dir() -> Result<PathBuf, std::io::Error> {
     let dirs = directories::ProjectDirs::from("com", "Fathforce", "CACalm")
         .ok_or_else(|| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "failed to determine app data dir",
-            )
+            std::io::Error::other("failed to determine app data dir")
         })?;
 
     let data_dir = dirs.data_dir();

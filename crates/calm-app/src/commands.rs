@@ -2,9 +2,8 @@ use crate::{settings::AppSettings, AppState};
 use calm_core::{Preset, SoundEntry};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use std::sync::Mutex;
 use std::time::Duration;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TimerSnapshot {
@@ -45,32 +44,10 @@ pub fn toggle_timer_state<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Resul
 
 /// Show and focus the main window (used by tray "Open App" / shortcut).
 pub fn open_main_window<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
-    use tauri::Manager;
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.unminimize();
         let _ = win.show();
         let _ = win.set_focus();
-    }
-}
-
-/// Toggle tray menu item text between "Start Focus" and "Pause Focus".
-pub fn refresh_tray_toggle_label<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
-    use tauri::Manager;
-    let Some(tray) = app.tray_by_id(crate::tray::TRAY_ID) else {
-        return;
-    };
-    let state: tauri::State<'_, AppState> = app.state();
-    let Ok(timer) = state.timer.lock() else {
-        return;
-    };
-    let label = if timer.is_paused() {
-        "Start Focus"
-    } else {
-        "Pause Focus"
-    };
-    drop(timer);
-    if let Some(item) = tray.menu().ok().and_then(|m| m.get(crate::tray::MENU_ITEM_TOGGLE_FOCUS)) {
-        let _ = item.as_menuitem().map(|mi| mi.set_text(label));
     }
 }
 
@@ -81,20 +58,26 @@ pub fn get_timer_snapshot(state: tauri::State<'_, AppState>) -> Result<TimerSnap
 }
 
 #[tauri::command]
-pub fn timer_pause(state: tauri::State<'_, AppState>) -> Result<TimerSnapshot, String> {
+pub fn timer_pause(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<TimerSnapshot, String> {
     let mut timer = state.timer.lock().map_err(|e| e.to_string())?;
     timer.pause();
     let snap = snapshot(&timer);
-    crate::tray::update_tray_tooltip(state.as_ref(), &snap);
+    crate::tray::update_tray_tooltip(&app, &snap);
     Ok(snap)
 }
 
 #[tauri::command]
-pub fn timer_resume(state: tauri::State<'_, AppState>) -> Result<TimerSnapshot, String> {
+pub fn timer_resume(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+) -> Result<TimerSnapshot, String> {
     let mut timer = state.timer.lock().map_err(|e| e.to_string())?;
     timer.resume();
     let snap = snapshot(&timer);
-    crate::tray::update_tray_tooltip(state.as_ref(), &snap);
+    crate::tray::update_tray_tooltip(&app, &snap);
     Ok(snap)
 }
 
@@ -190,27 +173,23 @@ pub fn update_settings(
     new_settings: AppSettings,
 ) -> Result<(), String> {
     crate::settings::save_settings(&new_settings)?;
-    let mut settings = state.settings.lock().map_err(|e| e.to_string())?;
-    let was_enabled_shortcuts = settings.shortcuts_enabled;
-    let was_enabled_tray = settings.tray_enabled;
-    *settings = new_settings.clone();
-    drop(settings);
-
-    if was_enabled_shortcuts != settings.shortcuts_enabled
-        || was_enabled_tray != settings.tray_enabled
-        || settings.shortcut_timer_toggle
-            != settings.shortcut_open_app
-            && false
     {
-        let _ = crate::shortcuts::unregister_global_shortcuts(&app);
-        if settings.shortcuts_enabled {
-            if let Err(e) = crate::shortcuts::register_global_shortcuts(&app, settings) {
-                eprintln!("Shortcut re-registration failed: {e}");
-            }
-        }
+        let mut settings = state.settings.lock().map_err(|e| e.to_string())?;
+        *settings = new_settings.clone();
     }
 
-    crate::tray::set_tray_visible(&app, settings.tray_enabled);
+    if new_settings.shortcuts_enabled {
+        crate::shortcuts::unregister_global_shortcuts(&app);
+        if let Err(e) =
+            crate::shortcuts::register_global_shortcuts(&app, &new_settings)
+        {
+            eprintln!("Shortcut re-registration failed: {e}");
+        }
+    } else {
+        crate::shortcuts::unregister_global_shortcuts(&app);
+    }
+
+    crate::tray::set_tray_visible(&app, new_settings.tray_enabled);
     Ok(())
 }
 
@@ -221,10 +200,11 @@ pub fn toggle_tray(
 ) -> Result<AppSettings, String> {
     let mut settings = state.settings.lock().map_err(|e| e.to_string())?;
     settings.tray_enabled = !settings.tray_enabled;
-    crate::settings::save_settings(settings)?;
+    let snapshot = settings.clone();
+    crate::settings::save_settings(&snapshot)?;
     drop(settings);
-    crate::tray::set_tray_visible(&app, settings.tray_enabled);
-    Ok(settings.clone())
+    crate::tray::set_tray_visible(&app, snapshot.tray_enabled);
+    Ok(snapshot)
 }
 
 #[tauri::command]
@@ -235,14 +215,14 @@ pub fn toggle_shortcuts(
     let mut settings = state.settings.lock().map_err(|e| e.to_string())?;
     settings.shortcuts_enabled = !settings.shortcuts_enabled;
     let snapshot = settings.clone();
-    crate::settings::save_settings(settings)?;
+    crate::settings::save_settings(&snapshot)?;
     drop(settings);
 
-    let _ = crate::shortcuts::unregister_global_shortcuts(&app);
-    if snapshot.shortcuts_enabled {
-        if let Err(e) = crate::shortcuts::register_global_shortcuts(&app, &snapshot) {
-            eprintln!("Shortcut registration failed: {e}");
-        }
+    crate::shortcuts::unregister_global_shortcuts(&app);
+    if snapshot.shortcuts_enabled
+        && let Err(e) = crate::shortcuts::register_global_shortcuts(&app, &snapshot)
+    {
+        eprintln!("Shortcut registration failed: {e}");
     }
     Ok(snapshot)
 }
@@ -256,14 +236,14 @@ pub fn set_shortcuts_enabled(
     let mut settings = state.settings.lock().map_err(|e| e.to_string())?;
     settings.shortcuts_enabled = enabled;
     let snapshot = settings.clone();
-    crate::settings::save_settings(settings)?;
+    crate::settings::save_settings(&snapshot)?;
     drop(settings);
 
-    let _ = crate::shortcuts::unregister_global_shortcuts(&app);
-    if enabled {
-        if let Err(e) = crate::shortcuts::register_global_shortcuts(&app, &snapshot) {
-            eprintln!("Shortcut registration failed: {e}");
-        }
+    crate::shortcuts::unregister_global_shortcuts(&app);
+    if enabled
+        && let Err(e) = crate::shortcuts::register_global_shortcuts(&app, &snapshot)
+    {
+        eprintln!("Shortcut registration failed: {e}");
     }
     Ok(snapshot)
 }
@@ -277,7 +257,7 @@ pub fn set_tray_enabled(
     let mut settings = state.settings.lock().map_err(|e| e.to_string())?;
     settings.tray_enabled = enabled;
     let snapshot = settings.clone();
-    crate::settings::save_settings(settings)?;
+    crate::settings::save_settings(&snapshot)?;
     drop(settings);
 
     crate::tray::set_tray_visible(&app, enabled);
@@ -288,7 +268,6 @@ pub fn set_tray_enabled(
 /// frontend "minimize" button).
 #[tauri::command]
 pub fn minimize_to_tray(app: tauri::AppHandle) {
-    use tauri::Manager;
     if let Some(win) = app.get_webview_window("main") {
         let _ = win.hide();
     }

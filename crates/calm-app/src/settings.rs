@@ -82,9 +82,11 @@ mod tests {
 
     #[test]
     fn test_json_serialization_roundtrip() {
-        let mut s = AppSettings::default();
-        s.tray_enabled = false;
-        s.shortcut_timer_toggle = "Ctrl+Shift+T".to_string();
+        let s = AppSettings {
+            tray_enabled: false,
+            shortcut_timer_toggle: "Ctrl+Shift+T".to_string(),
+            ..Default::default()
+        };
 
         let json = serde_json::to_string(&s).expect("serialize should succeed");
         let parsed: AppSettings = serde_json::from_str(&json).expect("deserialize should succeed");

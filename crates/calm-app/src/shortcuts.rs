@@ -79,9 +79,9 @@ pub fn register_global_shortcuts<R: Runtime>(
 
     let timer_sc = settings.shortcut_timer_toggle.clone();
     let app_handle1 = app.clone();
-    if let Err(e) = global_shortcut.on_shortcut(&timer_sc, move |_app, _sc, event| {
+    if let Err(e) = global_shortcut.on_shortcut(timer_sc.as_str(), move |_app, _sc, event| {
         if event.state == ShortcutState::Pressed {
-            crate::toggle_timer_state(&app_handle1);
+            let _ = crate::toggle_timer_state(&app_handle1);
         }
     }) {
         eprintln!(
@@ -92,7 +92,7 @@ pub fn register_global_shortcuts<R: Runtime>(
 
     let open_sc = settings.shortcut_open_app.clone();
     let app_handle2 = app.clone();
-    if let Err(e) = global_shortcut.on_shortcut(&open_sc, move |_app, _sc, event| {
+    if let Err(e) = global_shortcut.on_shortcut(open_sc.as_str(), move |_app, _sc, event| {
         if event.state == ShortcutState::Pressed {
             crate::open_main_window(&app_handle2);
         }
