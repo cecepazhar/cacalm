@@ -17,8 +17,8 @@ button, input, textarea, a, select, [role="button"], .no-drag {
 
 :root {
   /* Master CAUI Design System Tokens (Light Mode Default) */
-  --ca-brand: #10b981;
-  --ca-brand-glow: rgba(16, 185, 129, 0.2);
+  --ca-brand: #14b8a6;
+  --ca-brand-glow: rgba(20, 184, 166, 0.2);
   --ca-canvas: #f8fafc;
   --ca-surface: #ffffff;
   --ca-surface-base: #ffffff;
@@ -46,8 +46,8 @@ button, input, textarea, a, select, [role="button"], .no-drag {
 
 html.dark {
   /* Master CAUI Design System Tokens (Dark Mode) */
-  --ca-brand: #10b981;
-  --ca-brand-glow: rgba(16, 185, 129, 0.2);
+  --ca-brand: #14b8a6;
+  --ca-brand-glow: rgba(20, 184, 166, 0.2);
   --ca-canvas: #09090b;
   --ca-surface: #0e0e12;
   --ca-surface-base: #0a0a0c;
