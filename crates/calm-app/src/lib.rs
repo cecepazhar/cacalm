@@ -14,6 +14,7 @@ pub use commands::{
     save_preset, set_channel_pan, set_channel_volume, set_master_volume, set_shortcuts_enabled,
     set_tray_enabled, stop_channel, timer_pause, timer_reset, timer_resume, timer_skip,
     timer_tick, toggle_shortcuts, toggle_timer_state, toggle_tray, update_settings,
+    window_close, window_is_maximized, window_maximize, window_minimize, window_start_dragging,
 };
 
 /// Tauri managed state — holds the live engine instances and app settings.
@@ -125,7 +126,12 @@ pub fn run() {
             commands::list_active_channels,
             commands::get_pro_status,
             commands::activate_pro_license,
-            commands::deactivate_pro_license
+            commands::deactivate_pro_license,
+            commands::window_start_dragging,
+            commands::window_minimize,
+            commands::window_maximize,
+            commands::window_close,
+            commands::window_is_maximized
         ]);
 
     builder

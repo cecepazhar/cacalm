@@ -273,6 +273,50 @@ pub fn minimize_to_tray(app: tauri::AppHandle) {
     }
 }
 
+#[tauri::command]
+pub async fn window_start_dragging(#[allow(unused_variables)] window: tauri::Window) {
+    #[cfg(desktop)]
+    let _ = window.start_dragging();
+}
+
+#[tauri::command]
+pub async fn window_minimize(#[allow(unused_variables)] window: tauri::Window) {
+    #[cfg(desktop)]
+    let _ = window.minimize();
+}
+
+#[tauri::command]
+pub async fn window_maximize(#[allow(unused_variables)] window: tauri::Window) {
+    #[cfg(desktop)]
+    {
+        if let Ok(max) = window.is_maximized() {
+            if max {
+                let _ = window.unmaximize();
+            } else {
+                let _ = window.maximize();
+            }
+        } else {
+            let _ = window.maximize();
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn window_close(#[allow(unused_variables)] window: tauri::Window) {
+    #[cfg(desktop)]
+    let _ = window.close();
+}
+
+#[tauri::command]
+pub async fn window_is_maximized(#[allow(unused_variables)] window: tauri::Window) -> bool {
+    #[cfg(desktop)]
+    {
+        window.is_maximized().unwrap_or(false)
+    }
+    #[cfg(not(desktop))]
+    false
+}
+
 // --- Audio Engine IPC Commands ---
 
 fn resolve_channel_audio_path(
