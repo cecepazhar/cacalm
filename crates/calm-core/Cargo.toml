@@ -11,9 +11,9 @@ name = "calm_core"
 path = "src/lib.rs"
 
 [features]
-default = ["stub-audio"]
-# Real audio playback requires system audio headers (alsa-lib-devel on Fedora).
-# Enable with `--features audio` once libasound2-dev/alsa-lib-devel is installed.
+default = ["audio"]
+# Real audio playback via `rodio`/`cpal`; on Linux requires ALSA dev headers
+# (`alsa-lib-devel` / `libasound2-dev`). Kept as an opt-in fallback.
 audio = ["dep:rodio", "dep:cpal"]
 # Compiles the pure logic (timer, library, presets) without any audio backend.
 stub-audio = []

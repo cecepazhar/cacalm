@@ -4,7 +4,6 @@
 
 use crate::paths::app_data_dir;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 

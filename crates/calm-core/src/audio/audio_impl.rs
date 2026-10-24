@@ -1,8 +1,10 @@
 use parking_lot::Mutex;
-use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
+use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink, Source};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
+use std::sync::mpsc;
+use std::thread;
 use uuid::Uuid;
 
 /// Opaque channel handle.
@@ -51,20 +53,49 @@ pub enum AudioError {
 }
 
 /// Multi-channel playback engine.
+///
+/// `rodio::OutputStream` is `!Send + !Sync` on Linux/ALSA (the stream object
+/// must stay on the thread that created it), so it is created and owned by a
+/// dedicated "stream owner" worker thread. Only the `OutputStreamHandle` (which
+/// *is* `Send + Sync`) crosses the thread boundary to `AudioEngine`. When
+/// `AudioEngine` is dropped, `_drop_tx` hangs up, causing the worker thread
+/// to unpark and drop `OutputStream`.
 pub struct AudioEngine {
     handle: OutputStreamHandle,
-    _stream: OutputStream,
+    _drop_tx: mpsc::Sender<()>,
+    _thread: Option<thread::JoinHandle<()>>,
     channels: Mutex<HashMap<ChannelId, ChannelState>>,
     master_volume: Mutex<f32>,
 }
 
 impl AudioEngine {
     pub fn new() -> Result<Self, AudioError> {
-        let (stream, handle) =
-            OutputStream::try_default().map_err(|e| AudioError::NoDevice(e.to_string()))?;
+        let (init_tx, init_rx) = mpsc::sync_channel::<Result<OutputStreamHandle, String>>(1);
+        let (drop_tx, drop_rx) = mpsc::channel::<()>();
+
+        let join_handle = thread::Builder::new()
+            .name("cacalm-audio-stream".into())
+            .spawn(move || match OutputStream::try_default() {
+                Ok((stream, handle)) => {
+                    let _ = init_tx.send(Ok(handle));
+                    let _ = drop_rx.recv();
+                    drop(stream);
+                }
+                Err(e) => {
+                    let _ = init_tx.send(Err(e.to_string()));
+                }
+            })
+            .map_err(|e| AudioError::NoDevice(e.to_string()))?;
+
+        let handle = init_rx
+            .recv()
+            .map_err(|e| AudioError::NoDevice(e.to_string()))?
+            .map_err(AudioError::NoDevice)?;
+
         Ok(Self {
             handle,
-            _stream: stream,
+            _drop_tx: drop_tx,
+            _thread: Some(join_handle),
             channels: Mutex::new(HashMap::new()),
             master_volume: Mutex::new(1.0),
         })
@@ -94,8 +125,11 @@ impl AudioEngine {
 
         let sink = Sink::try_new(&self.handle)
             .map_err(|e| AudioError::NoDevice(e.to_string()))?;
-        sink.set_loop(loop_enabled);
-        sink.append(decoder);
+        if loop_enabled {
+            sink.append(decoder.repeat_infinite());
+        } else {
+            sink.append(decoder);
+        }
 
         let channel = ChannelId::new();
         let gain = DEFAULT_GAIN;
