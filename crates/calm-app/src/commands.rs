@@ -389,8 +389,30 @@ pub fn play_channel(
 ) -> Result<(), String> {
     let engine = state.engine.as_ref().map_err(|e| e.clone())?;
     let ch_id = calm_core::ChannelId::from_string(&channel_id);
+
+    // Built-in ambient channels are generated procedurally in-memory (no file reads)
+    let builtin = [
+        "ch-rain",
+        "ch-waves",
+        "ch-birds",
+        "ch-cafe",
+        "ch-fire",
+        "ch-wind",
+        "ch-stream",
+        "ch-noise",
+        "ch-binaural",
+        "ch-spatial",
+    ]
+    .contains(&channel_id.as_str());
+
     let lib = state.library.as_ref().ok();
-    let source_path = resolve_channel_audio_path(&channel_id, lib).unwrap_or_default();
+    let source_path = if builtin {
+        // Empty string forces in-memory procedural generation
+        String::new()
+    } else {
+        resolve_channel_audio_path(&channel_id, lib).unwrap_or_default()
+    };
+
     engine
         .play_channel(&ch_id, &channel_id, &source_path, volume)
         .map_err(|e| e.to_string())

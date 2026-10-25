@@ -7,7 +7,9 @@ class WebAudioEngine {
 
   private ensureContext(): AudioContext {
     if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       this.ctx = new AudioCtx();
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.setValueAtTime(this.masterVol, this.ctx.currentTime);
@@ -19,46 +21,87 @@ class WebAudioEngine {
     return this.ctx;
   }
 
-  private createNoiseBuffer(ctx: AudioContext, type: string): AudioBuffer {
-    const bufferSize = ctx.sampleRate * 4; // 4 seconds looping buffer
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    let lastOut = 0.0;
+  private createSeamlessNoiseBuffer(ctx: AudioContext, type: string): AudioBuffer {
+    // 16 seconds loop buffer with 1.5s seamless circular crossfade
+    const duration = 16.0;
+    const fadeDuration = 1.5;
+    const sampleRate = ctx.sampleRate;
+    const bodySamples = Math.floor(sampleRate * duration);
+    const fadeSamples = Math.floor(sampleRate * fadeDuration);
+    const totalSamples = bodySamples + fadeSamples;
 
-    for (let i = 0; i < bufferSize; i++) {
+    const raw = new Float32Array(totalSamples);
+    let lastBrown = 0.0;
+    let b0 = 0.0, b1 = 0.0, b2 = 0.0, b3 = 0.0, b4 = 0.0, b5 = 0.0, b6 = 0.0;
+
+    for (let i = 0; i < totalSamples; i++) {
       const white = Math.random() * 2 - 1;
+      const t = i / sampleRate;
+
+      // Pink noise approximation
+      b0 = 0.99886 * b0 + white * 0.0555179;
+      b1 = 0.99332 * b1 + white * 0.0750759;
+      b2 = 0.969 * b2 + white * 0.153852;
+      b3 = 0.8665 * b3 + white * 0.3104856;
+      b4 = 0.55 * b4 + white * 0.5329522;
+      b5 = -0.7616 * b5 - white * 0.016898;
+      const pink = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+      b6 = white * 0.115926;
+
+      // Brown noise approximation
+      lastBrown = (lastBrown + 0.02 * white) / 1.02;
+      const brown = lastBrown * 3.2;
+
+      let s = 0.0;
       if (type === 'ch-noise') {
-        // Brown noise
-        lastOut = (lastOut + 0.02 * white) / 1.02;
-        data[i] = lastOut * 3.5;
+        s = brown * 0.7;
       } else if (type === 'ch-rain') {
-        lastOut = (lastOut + 0.04 * white) / 1.04;
-        const patter = Math.random() > 0.98 ? (Math.random() * 2 - 1) * 0.5 : 0;
-        data[i] = lastOut * 2.2 + white * 0.15 + patter;
+        const drop = Math.random() > 0.982 ? (Math.random() * 2 - 1) * 0.45 : 0;
+        s = brown * 0.35 + pink * 0.4 + drop;
       } else if (type === 'ch-waves') {
-        lastOut = (lastOut + 0.015 * white) / 1.015;
-        const t = i / ctx.sampleRate;
-        const swell = Math.pow(Math.sin((t * Math.PI * 2) / 4) * 0.5 + 0.5, 2);
-        data[i] = lastOut * 3.0 * (0.2 + 0.8 * swell);
+        const swell = Math.pow(Math.sin((t * Math.PI * 2) / 8.0) * 0.5 + 0.5, 2.0);
+        s = (brown * 0.5 + pink * 0.3) * (0.2 + 0.8 * swell);
       } else if (type === 'ch-wind') {
-        lastOut = (lastOut + 0.03 * white) / 1.03;
-        const t = i / ctx.sampleRate;
-        const gust = Math.sin((t * Math.PI * 2) / 3.5) * 0.4 + 0.6;
-        data[i] = (lastOut * 2.0 + white * 0.1) * gust;
+        const gust = Math.sin((t * Math.PI * 2) / 5.2) * 0.35 + 0.65;
+        s = (brown * 0.4 + pink * 0.2) * gust;
       } else if (type === 'ch-fire') {
-        lastOut = (lastOut + 0.025 * white) / 1.025;
-        const crackle = Math.random() > 0.994 ? (Math.random() * 2 - 1) * 0.9 : 0;
-        data[i] = lastOut * 2.5 + crackle;
+        const pop = Math.random() > 0.992 ? (Math.random() * 2 - 1) * 0.8 : 0;
+        s = brown * 0.4 + pop;
       } else if (type === 'ch-stream') {
-        lastOut = (lastOut + 0.06 * white) / 1.06;
-        const t = i / ctx.sampleRate;
-        const bubble = Math.sin(t * 28) * 0.2 + 0.8;
-        data[i] = (lastOut * 1.5 + white * 0.25) * bubble;
+        const bubble = Math.sin(t * 16) * 0.25 + 0.75;
+        s = (pink * 0.4 + white * 0.1) * bubble;
+      } else if (type === 'ch-cafe') {
+        const murmur = Math.sin(t * Math.PI * 2 * 180) * 0.06 + Math.sin(t * Math.PI * 2 * 260) * 0.04;
+        const clink = Math.random() > 0.998 ? (Math.random() * 2 - 1) * 0.5 : 0;
+        s = brown * 0.35 + pink * 0.25 + murmur + clink;
+      } else if (type === 'ch-spatial') {
+        const lfo = Math.sin(t * Math.PI * 2 * 0.15);
+        const tone = Math.sin(t * Math.PI * 2 * (320 + 35 * lfo)) * 0.2;
+        s = brown * 0.25 + tone;
       } else {
-        lastOut = (lastOut + 0.03 * white) / 1.03;
-        data[i] = lastOut * 2.5;
+        s = brown * 0.4;
       }
+
+      raw[i] = Math.max(-1.0, Math.min(1.0, s));
     }
+
+    // Circular equal-power crossfade between the tail and head
+    for (let i = 0; i < fadeSamples; i++) {
+      const norm = i / fadeSamples;
+      // Equal power curve
+      const gainHead = Math.sin(norm * 0.5 * Math.PI);
+      const gainTail = Math.cos(norm * 0.5 * Math.PI);
+      const tailVal = raw[bodySamples + i];
+      const headVal = raw[i];
+      raw[i] = gainTail * tailVal + gainHead * headVal;
+    }
+
+    const buffer = ctx.createBuffer(1, bodySamples, sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bodySamples; i++) {
+      data[i] = raw[i];
+    }
+
     return buffer;
   }
 
@@ -76,28 +119,27 @@ class WebAudioEngine {
       let sourceNode: AudioNode;
 
       if (channelId === 'ch-binaural') {
-        // Binaural 210Hz
         const osc = ctx.createOscillator();
         osc.type = 'sine';
         osc.frequency.setValueAtTime(210, ctx.currentTime);
         osc.start();
         sourceNode = osc;
       } else if (channelId === 'ch-birds') {
-        // Periodic gentle chirp modulated sine + low rustle
+        // Continuous synth for birds
         const osc = ctx.createOscillator();
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(2600, ctx.currentTime);
+        osc.frequency.setValueAtTime(2400, ctx.currentTime);
         const lfo = ctx.createOscillator();
-        lfo.frequency.setValueAtTime(3, ctx.currentTime);
+        lfo.frequency.setValueAtTime(0.4, ctx.currentTime);
         const lfoGain = ctx.createGain();
-        lfoGain.gain.setValueAtTime(400, ctx.currentTime);
+        lfoGain.gain.setValueAtTime(600, ctx.currentTime);
         lfo.connect(lfoGain);
         lfoGain.connect(osc.frequency);
         osc.start();
         lfo.start();
         sourceNode = osc;
       } else {
-        const buf = this.createNoiseBuffer(ctx, channelId);
+        const buf = this.createSeamlessNoiseBuffer(ctx, channelId);
         const bs = ctx.createBufferSource();
         bs.buffer = buf;
         bs.loop = true;

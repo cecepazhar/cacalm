@@ -52,12 +52,12 @@
     { id: 'ch-waves', nameKey: 'waves', descKey: 'wavesDesc', icon: '🌊', volume: 0.35, pan: -0.2, muted: false, active: true, isPro: false },
     { id: 'ch-wind', nameKey: 'wind', descKey: 'windDesc', icon: '🍃', volume: 0.3, pan: 0.3, muted: false, active: false, isPro: false },
     { id: 'ch-noise', nameKey: 'noise', descKey: 'noiseDesc', icon: '⚪', volume: 0.25, pan: 0.0, muted: false, active: true, isPro: false },
-    { id: 'ch-birds', nameKey: 'birds', descKey: 'birdsDesc', icon: '🌲', volume: 0.5, pan: -0.3, muted: false, active: false, isPro: true },
-    { id: 'ch-cafe', nameKey: 'cafe', descKey: 'cafeDesc', icon: '☕', volume: 0.4, pan: 0.2, muted: false, active: false, isPro: true },
-    { id: 'ch-fire', nameKey: 'fire', descKey: 'fireDesc', icon: '🔥', volume: 0.6, pan: 0.1, muted: false, active: false, isPro: true },
-    { id: 'ch-stream', nameKey: 'stream', descKey: 'streamDesc', icon: '🏞️', volume: 0.45, pan: -0.1, muted: false, active: false, isPro: true },
-    { id: 'ch-binaural', nameKey: 'binaural', descKey: 'binauralDesc', icon: '🧠', volume: 0.3, pan: 0.0, muted: false, active: false, isPro: true },
-    { id: 'ch-spatial', nameKey: 'spatial', descKey: 'spatialDesc', icon: '🎧', volume: 0.5, pan: 0.0, muted: false, active: false, isPro: true },
+    { id: 'ch-birds', nameKey: 'birds', descKey: 'birdsDesc', icon: '🌲', volume: 0.5, pan: -0.3, muted: false, active: false, isPro: false },
+    { id: 'ch-cafe', nameKey: 'cafe', descKey: 'cafeDesc', icon: '☕', volume: 0.4, pan: 0.2, muted: false, active: false, isPro: false },
+    { id: 'ch-fire', nameKey: 'fire', descKey: 'fireDesc', icon: '🔥', volume: 0.6, pan: 0.1, muted: false, active: false, isPro: false },
+    { id: 'ch-stream', nameKey: 'stream', descKey: 'streamDesc', icon: '🏞️', volume: 0.45, pan: -0.1, muted: false, active: false, isPro: false },
+    { id: 'ch-binaural', nameKey: 'binaural', descKey: 'binauralDesc', icon: '🧠', volume: 0.3, pan: 0.0, muted: false, active: false, isPro: false },
+    { id: 'ch-spatial', nameKey: 'spatial', descKey: 'spatialDesc', icon: '🎧', volume: 0.5, pan: 0.0, muted: false, active: false, isPro: false },
   ]);
 
   const PRESETS: Preset[] = [
