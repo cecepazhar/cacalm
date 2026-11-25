@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { LanguageSwitcher, ThemeSwitcher } from '@cecepazhar/caui';
   import Icon from '$lib/components/Icon.svelte';
+  import PageHeader from '$lib/components/PageHeader.svelte';
   import { showToast } from '$lib/toast';
   import { isTauri } from '$lib/env';
   import { t, getLocale, setLocale } from '$lib/i18n/index.svelte';
@@ -119,14 +120,13 @@
   </div>
 {/snippet}
 
-<div class="max-w-3xl mx-auto w-full px-4 sm:px-6 py-6 space-y-5">
-  <div>
-    <h1 class="text-xl font-semibold tracking-tight">{t('settings.title')}</h1>
-    <p class="text-sm text-[var(--ca-text-muted)] mt-1">{t('settings.subtitle')}</p>
-  </div>
+<div class="calm-page">
+  <PageHeader icon="settings" title={t('settings.title')} subtitle={t('settings.subtitle')} />
+
+  <div class="grid gap-5 xl:grid-cols-2 items-start">
 
   <!-- Appearance -->
-  <section class="rounded-2xl border border-[var(--ca-border)]/70 bg-[var(--ca-surface)] p-5 space-y-4">
+  <section class="calm-card p-5 space-y-4">
     {@render header('sparkles', t('settings.appearanceTitle'), t('settings.appearanceDesc'))}
     <div class="grid sm:grid-cols-2 gap-3">
       <div class="flex items-center justify-between rounded-xl bg-[var(--ca-surface-subtle)]/50 px-4 py-3">
@@ -141,7 +141,7 @@
   </section>
 
   <!-- Sound -->
-  <section class="rounded-2xl border border-[var(--ca-border)]/70 bg-[var(--ca-surface)] p-5 space-y-4">
+  <section class="calm-card p-5 space-y-4">
     {@render header('bell', t('settings.soundTitle'), t('settings.soundDesc'))}
     <div class="flex items-center justify-between gap-4 rounded-xl bg-[var(--ca-surface-subtle)]/50 px-4 py-3">
       <span class="text-sm">{t('settings.chime')}</span>
@@ -151,7 +151,7 @@
 
   {#if isTauri()}
     <!-- Background playback -->
-    <section class="rounded-2xl border border-[var(--ca-border)]/70 bg-[var(--ca-surface)] p-5 space-y-4">
+    <section class="calm-card p-5 space-y-4">
       <div class="flex items-center justify-between gap-4">
         {@render header('moon', t('settings.trayTitle'), t('settings.trayDesc'))}
         {@render toggle(settings.tray_enabled, toggleTray, t('settings.enableTray'))}
@@ -162,7 +162,7 @@
     </section>
 
     <!-- Shortcuts -->
-    <section class="rounded-2xl border border-[var(--ca-border)]/70 bg-[var(--ca-surface)] p-5 space-y-4">
+    <section class="calm-card p-5 space-y-4">
       <div class="flex items-center justify-between gap-4">
         {@render header('keyboard', t('settings.shortcutsTitle'), t('settings.shortcutsDesc'))}
         {@render toggle(settings.shortcuts_enabled, toggleShortcuts, t('settings.enableShortcuts'))}
@@ -194,4 +194,5 @@
       {/if}
     </section>
   {/if}
+  </div>
 </div>

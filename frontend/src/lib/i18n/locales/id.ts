@@ -11,6 +11,12 @@ const id: Dictionary = {
     restore: 'Pulihkan',
     close: 'Tutup',
   },
+  boot: {
+    prefs: 'Memuat preferensi…',
+    sounds: 'Menyiapkan suaramu…',
+    fonts: 'Sebentar lagi…',
+    ready: 'Siap',
+  },
   nav: {
     sounds: 'Suara',
     focus: 'Fokus',

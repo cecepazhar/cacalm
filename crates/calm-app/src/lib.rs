@@ -64,6 +64,31 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        // A second launch focuses the running CACalm instead of starting another audio engine.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            open_main_window(app);
+        }))
+        // Remembers size, position and maximized state. First launch uses tauri.conf.json
+        // (maximized). VISIBLE is excluded: the window stays hidden until the boot splash
+        // has painted, so the user never sees a blank WebView.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::all()
+                        & !tauri_plugin_window_state::StateFlags::VISIBLE,
+                )
+                .build(),
+        )
+        // Show the (hidden) main window once its first page — the splash — has loaded.
+        .on_page_load(|webview, payload| {
+            if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished)
+                && webview.label() == "main"
+            {
+                let window = webview.window();
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        })
         .manage(AppState::new())
         .setup(|app| {
             let handle = app.handle();
@@ -75,6 +100,16 @@ pub fn run() {
                     .map(|s| s.clone())
                     .unwrap_or_default()
             };
+
+            // Fallback: show the window even if the page-load event never arrives.
+            if let Some(window) = handle.get_webview_window("main") {
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
+                    if !window.is_visible().unwrap_or(true) {
+                        let _ = window.show();
+                    }
+                });
+            }
 
             if let Err(e) = tray::setup_tray(handle, &settings) {
                 eprintln!("Failed to setup system tray: {e}");

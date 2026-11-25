@@ -14,6 +14,7 @@
   import { initMixer, togglePlay, toggleMasterMute } from '$lib/stores/mixer.svelte';
   import { initTimer, toggleTimer, resetTimer, skipPhase } from '$lib/stores/timer.svelte';
   import { APP_VERSION, BRAND, openExternal } from '$lib/brand';
+  import { finishBoot } from '$lib/boot';
 
   let { children } = $props();
 
@@ -80,6 +81,7 @@
     initTheme();
     initMixer();
     initTimer();
+    void finishBoot();
     if (isTauri()) {
       invoke<boolean>('window_is_maximized')
         .then((m) => (isMaximized = m))

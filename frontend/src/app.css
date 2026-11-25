@@ -175,3 +175,33 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .calm-aurora, .calm-eq span, .calm-breathe-ring, .calm-spin { animation: none !important; }
 }
+
+/* ------------------------------------------------------------------ */
+/* Shared page layout (v0.1.5) — one container, card and label style  */
+/* for every page so widths and spacing stay consistent when maximized */
+/* ------------------------------------------------------------------ */
+.calm-page {
+  width: 100%;
+  max-width: 1680px;
+  margin: 0 auto;
+  padding: 24px 20px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+@media (min-width: 1024px) {
+  .calm-page { padding: 28px 36px 40px; gap: 28px; }
+}
+.calm-card {
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--ca-border) 70%, transparent);
+  background: var(--ca-surface);
+}
+.calm-label {
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ca-text-muted);
+}

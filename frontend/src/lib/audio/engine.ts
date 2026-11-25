@@ -157,6 +157,11 @@ class CalmEngine {
     for (const id of ids) void this.load(id).catch(() => {});
   }
 
+  /** Renders the given sounds now (used by the boot splash). Never rejects. */
+  async warm(ids: string[]): Promise<void> {
+    await Promise.all(ids.map((id) => this.load(id).catch(() => undefined)));
+  }
+
   async play(id: string, volume: number, pan = 0): Promise<void> {
     this.wanted.set(id, { volume, pan });
     if (this.voices.has(id)) {

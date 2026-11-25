@@ -63,7 +63,7 @@
     }`;
 </script>
 
-<div class="max-w-6xl mx-auto w-full px-4 sm:px-6 py-5 space-y-6">
+<div class="calm-page">
   <!-- Hero -->
   <section class="relative overflow-hidden rounded-3xl border border-[var(--ca-border)]/60 bg-[var(--ca-surface)]">
     <div class="calm-aurora {mixer.playing ? 'is-playing' : ''}" aria-hidden="true"></div>
@@ -79,16 +79,16 @@
       </div>
 
       <div>
-        <div class="text-[11px] uppercase tracking-wider font-semibold text-[var(--ca-text-muted)] mb-2">
+        <div class="calm-label mb-2">
           {t('sounds.scenes')}
         </div>
-        <div class="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1">
+        <div class="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1 min-[1500px]:grid min-[1500px]:grid-cols-8 min-[1500px]:overflow-visible">
           {#each SCENES as scene (scene.id)}
             {@const on = mixer.sceneId === scene.id}
             <button
               type="button"
               onclick={() => applyScene(scene)}
-              class="shrink-0 w-44 text-left rounded-2xl p-3 border backdrop-blur-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ca-brand)] {on
+              class="shrink-0 w-44 min-[1500px]:w-auto text-left rounded-2xl p-3 border backdrop-blur-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ca-brand)] {on
                 ? 'bg-[var(--ca-brand)] text-white border-transparent shadow-lg'
                 : 'bg-[var(--ca-surface)]/70 border-[var(--ca-border)]/60 hover:bg-[var(--ca-surface)]'}"
             >
@@ -112,7 +112,7 @@
   <!-- My mixes -->
   {#if mixer.userMixes.length || mixer.selected.length}
     <section class="flex flex-wrap items-center gap-2">
-      <span class="text-[11px] uppercase tracking-wider font-semibold text-[var(--ca-text-muted)] mr-1">
+      <span class="calm-label mr-1">
         {t('sounds.myMixes')}
       </span>
       {#each mixer.userMixes as m (m.id)}
@@ -200,7 +200,7 @@
 
     {#if tab === 'mine'}
       {#if mixer.custom.length}
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1800px]:grid-cols-6 gap-3">
           {#each mixer.custom as c (c.id)}
             <SoundCard id={c.id} name={c.name} icon="music" desc={t('library.title')} />
           {/each}
@@ -215,7 +215,7 @@
         </a>
       {/if}
     {:else}
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1800px]:grid-cols-6 gap-3">
         {#each visible as s (s.id)}
           <SoundCard
             id={s.id}

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import PageHeader from '$lib/components/PageHeader.svelte';
   import { showToast } from '$lib/toast';
   import { t } from '$lib/i18n/index.svelte';
   import { isTauri } from '$lib/env';
@@ -82,12 +83,9 @@
   }
 </script>
 
-<div class="max-w-5xl mx-auto w-full px-4 sm:px-6 py-6 space-y-6">
-  <div class="flex flex-wrap items-end justify-between gap-4">
-    <div>
-      <h1 class="text-xl font-semibold tracking-tight">{t('library.title')}</h1>
-      <p class="text-sm text-[var(--ca-text-muted)] mt-1">{t('library.subtitle')}</p>
-    </div>
+<div class="calm-page">
+  <PageHeader icon="library" title={t('library.title')} subtitle={t('library.subtitle')}>
+    {#snippet actions()}
     <button
       type="button"
       onclick={handleImport}
@@ -97,17 +95,18 @@
       <Icon name="upload" size={16} />
       {t('library.addAudio')}
     </button>
-  </div>
+    {/snippet}
+  </PageHeader>
 
   {#if sounds.length}
-    <div class="text-[11px] uppercase tracking-wider font-semibold text-[var(--ca-text-muted)]">
+    <div class="calm-label">
       {t('library.fileCount', { count: sounds.length })}
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-3">
       {#each sounds as s (s.id)}
         {@const cid = `custom:${s.id}`}
         {@const inMix = mixer.selected.includes(cid)}
-        <div class="flex items-center gap-3 rounded-2xl border border-[var(--ca-border)]/70 bg-[var(--ca-surface)] p-3.5">
+        <div class="calm-card flex items-center gap-3 p-3.5">
           <span class="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--ca-surface-subtle)]/80 text-[var(--ca-brand)]">
             {#if mixer.loading[cid]}
               <span class="w-4 h-4 rounded-full border-2 border-current/30 border-t-current calm-spin"></span>

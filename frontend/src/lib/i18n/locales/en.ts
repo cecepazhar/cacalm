@@ -9,6 +9,12 @@ const en = {
     restore: 'Restore',
     close: 'Close',
   },
+  boot: {
+    prefs: 'Loading your preferences…',
+    sounds: 'Preparing your sounds…',
+    fonts: 'Almost there…',
+    ready: 'Ready',
+  },
   nav: {
     sounds: 'Sounds',
     focus: 'Focus',

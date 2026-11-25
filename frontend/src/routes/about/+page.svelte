@@ -12,7 +12,7 @@
   ];
 </script>
 
-<div class="max-w-3xl mx-auto w-full px-4 sm:px-6 py-6 space-y-5">
+<div class="calm-page">
   <section class="relative overflow-hidden rounded-3xl border border-[var(--ca-border)]/60 bg-[var(--ca-surface)]">
     <div class="calm-aurora" aria-hidden="true"></div>
     <div class="relative p-7 sm:p-10 flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-left">
@@ -39,9 +39,22 @@
     </div>
   </section>
 
-  <section class="rounded-2xl border border-[var(--ca-border)]/70 bg-[var(--ca-surface)] p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+    <section class="grid sm:grid-cols-3 gap-5">
+    {#each features as f (f.title)}
+      <div class="calm-card p-5 space-y-2">
+        <span class="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--ca-brand)]/10 text-[var(--ca-brand)]">
+          <Icon name={f.icon} size={17} />
+        </span>
+        <div class="text-sm font-semibold">{t(f.title)}</div>
+        <p class="text-xs leading-relaxed text-[var(--ca-text-muted)]">{t(f.desc)}</p>
+      </div>
+    {/each}
+  </section>
+
+  <div class="grid gap-5 xl:grid-cols-2">
+  <section class="calm-card p-5 flex flex-col sm:flex-row sm:items-center gap-4">
     <div class="flex-1">
-      <div class="text-[11px] uppercase tracking-wider font-semibold text-[var(--ca-text-muted)]">{t('about.madeBy')}</div>
+      <div class="calm-label">{t('about.madeBy')}</div>
       <div class="text-lg font-semibold mt-1">{BRAND.author} · {BRAND.company}</div>
       <div class="text-xs text-[var(--ca-text-muted)] mt-0.5">© {BRAND.year} {BRAND.authorFull} — {BRAND.company}</div>
       <div class="text-xs text-[var(--ca-text-muted)]">{t('about.license')}</div>
@@ -58,17 +71,7 @@
     </div>
   </section>
 
-  <section class="grid sm:grid-cols-3 gap-3">
-    {#each features as f (f.title)}
-      <div class="rounded-2xl border border-[var(--ca-border)]/70 bg-[var(--ca-surface)] p-4 space-y-2">
-        <span class="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--ca-brand)]/10 text-[var(--ca-brand)]">
-          <Icon name={f.icon} size={17} />
-        </span>
-        <div class="text-sm font-semibold">{t(f.title)}</div>
-        <p class="text-xs leading-relaxed text-[var(--ca-text-muted)]">{t(f.desc)}</p>
-      </div>
-    {/each}
-  </section>
+
 
   <section class="rounded-2xl border border-rose-500/25 bg-rose-500/5 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
     <span class="w-10 h-10 rounded-xl flex items-center justify-center bg-rose-500/15 text-rose-500 shrink-0">
@@ -84,4 +87,5 @@
       {t('about.support')}
     </button>
   </section>
+  </div>
 </div>
