@@ -2,7 +2,7 @@
 name = "CACalm"
 slug = "cacalm"
 bundle_id = "com.fathforce.cacalm"
-version = "0.1.3"
+version = "0.1.4"
 accent_color = "teal"
 error_prefix = "CALM"
 description = "Free calm app — ambient soundscapes, binaural beats, breathing guides & focus timer."

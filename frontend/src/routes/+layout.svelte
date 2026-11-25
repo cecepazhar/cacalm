@@ -115,7 +115,7 @@
       const target = e.target as HTMLElement | null;
       if (!target?.closest('button, input, textarea, a, select, [role="button"], .no-drag')) void toggleMaximize();
     }}
-    class="h-11 shrink-0 flex items-center justify-between pl-4 pr-2 border-b border-[var(--ca-border)]/70 bg-[var(--ca-surface)]/80 backdrop-blur-md z-30"
+    class="h-11 shrink-0 flex items-center justify-between pl-4 pr-2 bg-[var(--ca-canvas)] z-30"
   >
     <div class="flex items-center gap-2.5" data-tauri-drag-region>
       <Logo size={22} mode="brand" />
@@ -163,7 +163,7 @@
   <div class="flex-1 min-h-0 flex">
     <!-- Sidebar -->
     <aside
-      class="w-[68px] lg:w-56 shrink-0 flex flex-col justify-between border-r border-[var(--ca-border)]/70 bg-[var(--ca-surface)]/50 py-3 px-2.5"
+      class="w-[68px] lg:w-56 shrink-0 flex flex-col justify-between bg-[var(--ca-canvas)] py-3 px-2.5"
     >
       <nav class="flex flex-col gap-1" aria-label="Main">
         {#each navItems as item (item.href)}

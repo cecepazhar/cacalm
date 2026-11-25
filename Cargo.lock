@@ -290,7 +290,7 @@ dependencies = [
 
 [[package]]
 name = "calm-app"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "calm-core",
  "chrono",
@@ -308,7 +308,7 @@ dependencies = [
 
 [[package]]
 name = "calm-core"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "chrono",
  "cpal",
