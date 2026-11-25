@@ -1,4 +1,4 @@
-use calm_core::{AudioEngine, PomodoroTimer, PresetManager, SoundLibrary};
+use calm_core::{PomodoroTimer, PresetManager, SoundLibrary};
 use std::sync::Mutex;
 use tauri::Manager;
 
@@ -8,18 +8,15 @@ pub mod shortcuts;
 pub mod tray;
 
 pub use commands::{
-    activate_pro_license, deactivate_pro_license, delete_preset, delete_sound, get_app_version,
-    get_pro_status, get_settings, get_timer_snapshot, import_sound, list_active_channels,
-    list_presets, list_sounds, load_preset, minimize_to_tray, open_main_window, play_channel,
-    save_preset, set_channel_pan, set_channel_volume, set_master_volume, set_shortcuts_enabled,
-    set_tray_enabled, stop_channel, timer_pause, timer_reset, timer_resume, timer_skip,
-    timer_tick, toggle_shortcuts, toggle_timer_state, toggle_tray, update_settings,
+    delete_preset, delete_sound, get_app_version, get_settings, get_timer_snapshot, import_sound,
+    list_presets, list_sounds, load_preset, minimize_to_tray, open_external, open_main_window, read_sound_file,
+    save_preset, set_shortcuts_enabled, set_tray_enabled, timer_pause, timer_reset, timer_resume,
+    timer_skip, timer_tick, toggle_shortcuts, toggle_timer_state, toggle_tray, update_settings,
     window_close, window_is_maximized, window_maximize, window_minimize, window_start_dragging,
 };
 
 /// Tauri managed state — holds the live engine instances and app settings.
 pub struct AppState {
-    pub engine: Result<AudioEngine, String>,
     pub timer: Mutex<PomodoroTimer>,
     pub library: Result<SoundLibrary, String>,
     pub preset_mgr: Result<PresetManager, String>,
@@ -29,7 +26,6 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         Self {
-            engine: AudioEngine::new().map_err(|e| e.to_string()),
             timer: Mutex::new(PomodoroTimer::default()),
             library: SoundLibrary::open().map_err(|e| e.to_string()),
             preset_mgr: PresetManager::new().map_err(|e| e.to_string()),
@@ -71,12 +67,6 @@ pub fn run() {
                 eprintln!("Failed to register global shortcuts: {e}");
             }
 
-            {
-                let state = handle.state::<AppState>();
-                if let Ok(ref lib) = state.library {
-                    let _ = lib.seed_default_sounds();
-                }
-            }
 
             Ok(())
         })
@@ -118,15 +108,8 @@ pub fn run() {
             commands::set_shortcuts_enabled,
             commands::set_tray_enabled,
             commands::minimize_to_tray,
-            commands::play_channel,
-            commands::stop_channel,
-            commands::set_channel_volume,
-            commands::set_master_volume,
-            commands::set_channel_pan,
-            commands::list_active_channels,
-            commands::get_pro_status,
-            commands::activate_pro_license,
-            commands::deactivate_pro_license,
+            commands::read_sound_file,
+            commands::open_external,
             commands::window_start_dragging,
             commands::window_minimize,
             commands::window_maximize,

@@ -14,7 +14,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-calm-core = { path = "../calm-core" }
+# Audio is rendered in the WebView (Web Audio API); the native rodio backend is
+# not linked, which keeps the binary small and avoids ALSA on Linux.
+calm-core = { path = "../calm-core", default-features = false, features = ["stub-audio"] }
 tauri = { version = "2", features = ["tray-icon", "image-png"] }
 serde.workspace = true
 serde_json.workspace = true
