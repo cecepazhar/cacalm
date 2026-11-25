@@ -44,7 +44,7 @@
   <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px] items-start">
     <!-- Timer -->
     <section class="relative overflow-hidden rounded-3xl border border-[var(--ca-border)]/60 bg-[var(--ca-surface)] min-h-[440px] flex items-center">
-      <div class="calm-aurora {timer.paused ? '' : 'is-playing'}" aria-hidden="true" style={isBreak ? 'filter: hue-rotate(60deg) blur(10px)' : ''}></div>
+      <div class="calm-aurora {timer.paused ? '' : 'is-playing'}" aria-hidden="true" style={isBreak ? 'filter: hue-rotate(60deg)' : ''}></div>
       <div class="relative w-full p-8 sm:p-12 flex flex-col lg:flex-row items-center justify-center gap-10 lg:gap-16">
         <div class="relative w-64 h-64 shrink-0">
           <svg viewBox="0 0 240 240" class="w-full h-full -rotate-90">

@@ -88,7 +88,23 @@
         .catch(() => {});
     }
     window.addEventListener('keydown', handleKeydown);
-    return () => window.removeEventListener('keydown', handleKeydown);
+
+    // Pause every animation while the window is in the background, so a
+    // tray-resident CACalm costs (almost) no CPU/GPU for drawing.
+    const setIdle = () =>
+      document.documentElement.classList.toggle('calm-idle', document.hidden || !document.hasFocus());
+    const onBlur = () => setTimeout(setIdle, 0);
+    window.addEventListener('focus', setIdle);
+    window.addEventListener('blur', onBlur);
+    document.addEventListener('visibilitychange', setIdle);
+    setIdle();
+
+    return () => {
+      window.removeEventListener('keydown', handleKeydown);
+      window.removeEventListener('focus', setIdle);
+      window.removeEventListener('blur', onBlur);
+      document.removeEventListener('visibilitychange', setIdle);
+    };
   });
 
   const navItems = $derived([

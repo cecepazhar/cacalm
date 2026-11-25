@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
 
 pub mod commands;
+pub mod memory;
 pub mod settings;
 pub mod shortcuts;
 pub mod tray;
@@ -103,6 +104,7 @@ pub fn run() {
 
             // Fallback: show the window even if the page-load event never arrives.
             if let Some(window) = handle.get_webview_window("main") {
+                memory::install(&window);
                 tauri::async_runtime::spawn(async move {
                     tokio::time::sleep(std::time::Duration::from_millis(2500)).await;
                     if !window.is_visible().unwrap_or(true) {
@@ -139,6 +141,9 @@ pub fn run() {
                 if should_minimize {
                     api.prevent_close();
                     let _ = window.hide();
+                    if let Some(w) = app.get_webview_window(window.label()) {
+                        memory::on_hidden(&w);
+                    }
                 }
             }
         })

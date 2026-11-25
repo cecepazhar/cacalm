@@ -41,7 +41,7 @@
 
 <svelte:window onclick={() => (sleepOpen = false)} />
 
-<div class="shrink-0 h-[68px] border-t border-[var(--ca-border)]/70 bg-[var(--ca-surface)]/90 backdrop-blur-md px-3 sm:px-5 flex items-center gap-3 sm:gap-5 relative z-20">
+<div class="shrink-0 h-[68px] border-t border-[var(--ca-border)]/70 bg-[var(--ca-surface)] px-3 sm:px-5 flex items-center gap-3 sm:gap-5 relative z-20">
   <!-- Play / pause -->
   <div class="relative shrink-0">
     {#if mixer.playing}

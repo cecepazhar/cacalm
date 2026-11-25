@@ -261,6 +261,7 @@ export function setSleepTimer(minutes: number) {
   state.sleepMinutes = minutes;
   state.sleepFading = false;
   engine.restoreMaster();
+  state.now = Date.now();
   state.sleepEndsAt = minutes > 0 ? Date.now() + minutes * 60_000 : null;
   if (minutes > 0 && !state.playing) play();
 }
@@ -271,8 +272,10 @@ export function sleepRemaining(): number {
 }
 
 function sleepTick() {
-  state.now = Date.now();
+  // Only touch reactive state while a sleep timer runs, so an idle CACalm
+  // does not re-render the player bar every second.
   if (!state.sleepEndsAt) return;
+  state.now = Date.now();
   const left = (state.sleepEndsAt - state.now) / 1000;
   if (!state.sleepFading && left <= SLEEP_FADE_SECS) {
     state.sleepFading = true;

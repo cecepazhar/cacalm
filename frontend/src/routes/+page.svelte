@@ -88,7 +88,7 @@
             <button
               type="button"
               onclick={() => applyScene(scene)}
-              class="shrink-0 w-44 min-[1500px]:w-auto text-left rounded-2xl p-3 border backdrop-blur-sm transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ca-brand)] {on
+              class="shrink-0 w-44 min-[1500px]:w-auto text-left rounded-2xl p-3 border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ca-brand)] {on
                 ? 'bg-[var(--ca-brand)] text-white border-transparent shadow-lg'
                 : 'bg-[var(--ca-surface)]/70 border-[var(--ca-border)]/60 hover:bg-[var(--ca-surface)]'}"
             >

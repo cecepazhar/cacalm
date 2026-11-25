@@ -147,11 +147,10 @@ body {
     radial-gradient(40% 40% at 25% 35%, var(--calm-hero-a), transparent 70%),
     radial-gradient(35% 35% at 75% 30%, var(--calm-hero-b), transparent 70%),
     radial-gradient(45% 45% at 60% 80%, var(--calm-hero-c), transparent 70%);
-  filter: blur(10px);
-  animation: calm-drift 24s ease-in-out infinite alternate;
+  /* Static on purpose: measured as the main CPU/GPU cost when it moved (with live blur
+     and with backdrop-blur layers above it). The soft radial gradients alone give the mood. */
   pointer-events: none;
 }
-.calm-aurora.is-playing { animation-duration: 14s; }
 @keyframes calm-drift {
   0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
   50% { transform: translate3d(4%, -3%, 0) scale(1.08) rotate(8deg); }
@@ -160,17 +159,21 @@ body {
 
 /* Equalizer bars on playing cards */
 .calm-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; }
-.calm-eq span { width: 3px; border-radius: 2px; background: var(--ca-brand); animation: calm-eq 1.2s ease-in-out infinite; }
+/* scaleY instead of height: animating height re-ran layout + paint every frame. */
+.calm-eq span { width: 3px; height: 12px; border-radius: 2px; background: var(--ca-brand); transform-origin: bottom; will-change: transform; animation: calm-eq 1.2s ease-in-out infinite; }
 .calm-eq span:nth-child(2) { animation-delay: -0.4s; }
 .calm-eq span:nth-child(3) { animation-delay: -0.8s; }
-@keyframes calm-eq { 0%, 100% { height: 3px; } 50% { height: 12px; } }
+@keyframes calm-eq { 0%, 100% { transform: scaleY(0.25); } 50% { transform: scaleY(1); } }
 
 /* Gentle breathing pulse for the logo / play button */
 @keyframes calm-breathe { 0%, 100% { transform: scale(1); opacity: 0.55; } 50% { transform: scale(1.18); opacity: 0.15; } }
-.calm-breathe-ring { animation: calm-breathe 6s ease-in-out infinite; }
+.calm-breathe-ring { will-change: transform, opacity; animation: calm-breathe 6s ease-in-out infinite; }
 
 @keyframes calm-spin { to { transform: rotate(360deg); } }
 .calm-spin { animation: calm-spin 0.9s linear infinite; }
+
+/* While CACalm is in the background (unfocused, minimized or in the tray) nothing animates. */
+html.calm-idle *, html.calm-idle *::before, html.calm-idle *::after { animation-play-state: paused !important; }
 
 @media (prefers-reduced-motion: reduce) {
   .calm-aurora, .calm-eq span, .calm-breathe-ring, .calm-spin { animation: none !important; }

@@ -7,7 +7,11 @@
 // All volume changes are ramped to avoid zipper noise / clicks.
 
 const GEN_RATE = 32000;
-const MAX_CACHED = 10;
+// Rendered loops kept in memory (each 2–10 MB). Everything not playing is released
+// TRIM_AFTER_MS after playback stops.
+const MAX_CACHED = 4;
+const TRIM_AFTER_MS = 120_000;
+const WORKER_IDLE_MS = 60_000;
 
 type Loader = () => Promise<ArrayBuffer>;
 
@@ -33,6 +37,9 @@ class CalmEngine {
   private waiters = new Map<number, { resolve: (v: [Float32Array, Float32Array]) => void; reject: (e: Error) => void }>();
   private masterVolume = 0.8;
   private onLoading: ((id: string, loading: boolean) => void) | null = null;
+  private suspendTimer: ReturnType<typeof setTimeout> | null = null;
+  private trimTimer: ReturnType<typeof setTimeout> | null = null;
+  private workerIdleTimer: ReturnType<typeof setTimeout> | null = null;
 
   setLoadingListener(fn: (id: string, loading: boolean) => void) {
     this.onLoading = fn;
@@ -77,6 +84,7 @@ class CalmEngine {
         const w = this.waiters.get(reqId);
         if (!w) return;
         this.waiters.delete(reqId);
+        this.armWorkerIdle();
         if (error || !L || !R) w.reject(new Error(error ?? 'render failed'));
         else w.resolve([L, R]);
       };
@@ -91,6 +99,42 @@ class CalmEngine {
       this.worker = null;
     }
     return this.worker;
+  }
+
+/** Terminates the render worker after a minute without work (it holds ~10–20 MB). */
+  private armWorkerIdle() {
+    if (this.workerIdleTimer) clearTimeout(this.workerIdleTimer);
+    this.workerIdleTimer = setTimeout(() => {
+      if (this.worker && this.waiters.size === 0) {
+        this.worker.terminate();
+        this.worker = null;
+      }
+    }, WORKER_IDLE_MS);
+  }
+
+  private get idle(): boolean {
+    return this.voices.size === 0 && this.wanted.size === 0 && this.pending.size === 0;
+  }
+
+  private cancelIdle() {
+    if (this.suspendTimer) clearTimeout(this.suspendTimer);
+    if (this.trimTimer) clearTimeout(this.trimTimer);
+    this.suspendTimer = this.trimTimer = null;
+  }
+
+  /**
+   * When nothing plays: suspend the AudioContext once fades finish (stops the audio
+   * thread from processing silence) and later release the cached buffers.
+   */
+  private scheduleIdle(afterSec: number) {
+    if (!this.idle || !this.ctx) return;
+    this.cancelIdle();
+    this.suspendTimer = setTimeout(() => {
+      if (this.idle && this.ctx && this.ctx.state === 'running') void this.ctx.suspend();
+    }, afterSec * 1000 + 300);
+    this.trimTimer = setTimeout(() => {
+      if (this.idle) this.cache.clear();
+    }, TRIM_AFTER_MS);
   }
 
   private async render(id: string): Promise<[Float32Array, Float32Array]> {
@@ -160,9 +204,12 @@ class CalmEngine {
   /** Renders the given sounds now (used by the boot splash). Never rejects. */
   async warm(ids: string[]): Promise<void> {
     await Promise.all(ids.map((id) => this.load(id).catch(() => undefined)));
+    // Pre-rendering created the AudioContext; put it to sleep until Play (keep the buffers).
+    if (this.idle && this.ctx && this.ctx.state === 'running') void this.ctx.suspend();
   }
 
   async play(id: string, volume: number, pan = 0): Promise<void> {
+    this.cancelIdle();
     this.wanted.set(id, { volume, pan });
     if (this.voices.has(id)) {
       this.setVolume(id, volume);
@@ -194,7 +241,10 @@ class CalmEngine {
   stop(id: string, fade = 0.8) {
     this.wanted.delete(id);
     const v = this.voices.get(id);
-    if (!v || !this.ctx) return;
+    if (!v || !this.ctx) {
+      this.scheduleIdle(0);
+      return;
+    }
     this.voices.delete(id);
     const now = this.ctx.currentTime;
     v.gain.gain.cancelScheduledValues(now);
@@ -210,6 +260,7 @@ class CalmEngine {
       v.pan.disconnect();
       v.gain.disconnect();
     };
+    this.scheduleIdle(fade + 0.2);
   }
 
   stopAll(fade = 0.8) {
@@ -265,7 +316,10 @@ class CalmEngine {
 
   /** Soft bell used for timer phase changes. */
   chime(volume = 0.35) {
+    this.cancelIdle();
     const ctx = this.ensure();
+    // Let the bell ring out, then go back to sleep if nothing else is playing.
+    setTimeout(() => this.scheduleIdle(0), 2500);
     const now = ctx.currentTime;
     const out = ctx.createGain();
     out.gain.value = volume;
