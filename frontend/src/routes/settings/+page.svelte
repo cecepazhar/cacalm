@@ -3,6 +3,8 @@
   import { LanguageSwitcher, ThemeSwitcher } from '@cecepazhar/caui';
   import Icon from '$lib/components/Icon.svelte';
   import PageHeader from '$lib/components/PageHeader.svelte';
+  import { getProfile, setName } from '$lib/stores/profile.svelte';
+  import { exportBackup, pickBackup, restoreBackup, type Backup } from '$lib/backup';
   import { showToast } from '$lib/toast';
   import { isTauri } from '$lib/env';
   import { t, getLocale, setLocale } from '$lib/i18n/index.svelte';
@@ -17,6 +19,27 @@
   }
 
   const prefs = getTimerPrefs();
+  const profile = getProfile();
+  let nameDraft = $state(profile.name);
+  let pending = $state<Backup | null>(null);
+
+  async function doExport() {
+    try {
+      if (await exportBackup()) showToast(t('backup.exported'), 'success');
+    } catch (e) {
+      console.error(e);
+      showToast(t('backup.failed'), 'error');
+    }
+  }
+
+  async function doPick() {
+    try {
+      pending = await pickBackup();
+    } catch (e) {
+      console.error(e);
+      showToast(t('backup.invalid'), 'error');
+    }
+  }
 
   let settings = $state<AppSettings>({
     tray_enabled: true,
@@ -125,6 +148,30 @@
 
   <div class="grid gap-5 xl:grid-cols-2 items-start">
 
+  <!-- Profile -->
+  <section class="calm-card p-5 space-y-4">
+    {@render header('heart', t('profile.title'), t('profile.desc'))}
+    <form
+      class="flex gap-2"
+      onsubmit={(e) => {
+        e.preventDefault();
+        setName(nameDraft);
+        showToast(t('settings.saveSuccess'), 'success');
+      }}
+    >
+      <input
+        type="text"
+        bind:value={nameDraft}
+        maxlength="40"
+        placeholder={t('profile.placeholder')}
+        aria-label={t('profile.name')}
+        class="flex-1 rounded-xl bg-[var(--ca-surface-subtle)]/50 border border-[var(--ca-border)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ca-brand)] select-text"
+      />
+      <button type="submit" class="rounded-xl px-4 py-2 text-sm font-semibold bg-[var(--ca-brand)] text-white hover:brightness-110">{t('dialogs.save')}</button>
+    </form>
+    <p class="text-xs text-[var(--ca-text-muted)]">{t('profile.preview', { greeting: t('greeting.morning') + (nameDraft.trim() ? ', ' + nameDraft.trim() + '!' : '') })}</p>
+  </section>
+
   <!-- Appearance -->
   <section class="calm-card p-5 space-y-4">
     {@render header('sparkles', t('settings.appearanceTitle'), t('settings.appearanceDesc'))}
@@ -147,6 +194,31 @@
       <span class="text-sm">{t('settings.chime')}</span>
       {@render toggle(prefs.chime, () => setChime(!prefs.chime), t('settings.chime'))}
     </div>
+  </section>
+
+  <!-- Backup & import -->
+  <section class="calm-card p-5 space-y-4">
+    {@render header('save', t('backup.title'), t('backup.desc'))}
+    <div class="flex flex-wrap gap-2">
+      <button type="button" onclick={doExport} class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold bg-[var(--ca-brand)] text-white hover:brightness-110">
+        <Icon name="download" size={15} />
+        {t('backup.export')}
+      </button>
+      <button type="button" onclick={doPick} class="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border border-[var(--ca-border)] hover:bg-[var(--ca-surface-subtle)]/60">
+        <Icon name="upload" size={15} />
+        {t('backup.import')}
+      </button>
+    </div>
+    <p class="text-xs text-[var(--ca-text-muted)]">{t('backup.note')}</p>
+    {#if pending}
+      <div class="rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 space-y-3" role="alert">
+        <p class="text-sm">{t('backup.confirm', { date: new Date(pending.exportedAt).toLocaleString(), version: pending.appVersion, count: Object.keys(pending.local).length })}</p>
+        <div class="flex gap-2">
+          <button type="button" onclick={() => pending && restoreBackup(pending)} class="rounded-xl px-4 py-2 text-sm font-semibold bg-amber-500 text-black hover:brightness-110">{t('backup.restore')}</button>
+          <button type="button" onclick={() => (pending = null)} class="rounded-xl px-4 py-2 text-sm border border-[var(--ca-border)]">{t('dialogs.cancel')}</button>
+        </div>
+      </div>
+    {/if}
   </section>
 
   {#if isTauri()}

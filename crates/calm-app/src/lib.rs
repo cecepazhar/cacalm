@@ -14,7 +14,7 @@ pub use commands::{
     list_presets, list_sounds, load_preset, minimize_to_tray, open_external, set_sound_playing, open_main_window, read_sound_file,
     save_preset, set_shortcuts_enabled, set_tray_enabled, timer_pause, timer_reset, timer_resume,
     timer_skip, timer_tick, toggle_shortcuts, toggle_timer_state, toggle_tray, update_settings,
-    window_close, window_is_maximized, window_maximize, window_minimize, window_start_dragging,
+    window_close, window_is_maximized, window_set_fullscreen, app_quit, system_power, backup_write, backup_read, window_maximize, window_minimize, window_start_dragging,
 };
 
 /// Set when the user explicitly quits, so the close-to-tray handler lets the
@@ -176,7 +176,13 @@ pub fn run() {
             commands::window_minimize,
             commands::window_maximize,
             commands::window_close,
-            commands::window_is_maximized
+            commands::window_is_maximized,
+            commands::window_set_fullscreen,
+            commands::app_quit,
+            commands::system_power,
+            commands::window_attention,
+            commands::backup_write,
+            commands::backup_read
         ]);
 
     builder

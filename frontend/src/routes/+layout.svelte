@@ -9,6 +9,9 @@
   import Logo from '$lib/components/Logo.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import PlayerBar from '$lib/components/PlayerBar.svelte';
+  import PowerCountdown from '$lib/components/PowerCountdown.svelte';
+  import ImmersiveMode from '$lib/components/ImmersiveMode.svelte';
+  import { getModes } from '$lib/stores/modes.svelte';
   import { initTheme } from '$lib/stores/theme.svelte';
   import { getLocale, setLocale, t } from '$lib/i18n/index.svelte';
   import { initMixer, togglePlay, toggleMasterMute } from '$lib/stores/mixer.svelte';
@@ -17,6 +20,7 @@
   import { finishBoot } from '$lib/boot';
 
   let { children } = $props();
+  const modes = getModes();
 
   let isMaximized = $state(false);
 
@@ -234,4 +238,10 @@
   </div>
 
   <PlayerBar />
+  {#if modes.active}
+    {#key modes.active.id}
+      <ImmersiveMode mode={modes.active} />
+    {/key}
+  {/if}
+  <PowerCountdown />
 </div>

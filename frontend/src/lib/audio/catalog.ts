@@ -95,6 +95,8 @@ export const SOUNDS: SoundMeta[] = [
   { id: 'ch-binaural', category: 'relax', icon: 'wave', volume: 0.3, headphones: true, name: { en: 'Alpha 10 Hz', id: 'Alfa 10 Hz' }, desc: { en: 'Binaural · calm alertness', id: 'Binaural · tenang namun sadar' } },
   { id: 'r-breath478', category: 'relax', icon: 'breath', volume: 0.5, breath: [4, 7, 8, 0], name: { en: 'Breathe 4-7-8', id: 'Napas 4-7-8' }, desc: { en: 'Guided calming breath', id: 'Panduan napas penenang' } },
   { id: 'r-breathbox', category: 'relax', icon: 'square', volume: 0.5, breath: [4, 4, 4, 4], name: { en: 'Box Breathing', id: 'Napas Kotak' }, desc: { en: '4-4-4-4 steady rhythm', id: 'Ritme stabil 4-4-4-4' } },
+  { id: 'r-musicbox', category: 'relax', icon: 'music', volume: 0.4, name: { en: 'Music Box', id: 'Music Box' }, desc: { en: 'Soft arpeggios, slow and warm', id: 'Arpeggio lembut, pelan & hangat' } },
+  { id: 'r-warmpad', category: 'relax', icon: 'sparkles', volume: 0.35, name: { en: 'Warm Pad', id: 'Pad Hangat' }, desc: { en: 'Slow major-7 chords', id: 'Akor mayor-7 yang pelan' } },
   { id: 'ch-spatial', category: 'relax', icon: 'headphones', volume: 0.4, name: { en: '8D Ambient', id: 'Ambient 8D' }, desc: { en: 'Warm pad circling around you', id: 'Nada hangat berputar di sekitarmu' } },
 
   // Meditate

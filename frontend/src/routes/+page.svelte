@@ -3,6 +3,10 @@
   import SoundCard from '$lib/components/SoundCard.svelte';
   import BreathGuide from '$lib/components/BreathGuide.svelte';
   import { t, getLocale } from '$lib/i18n/index.svelte';
+  import { MODES } from '$lib/modes/catalog';
+  import { openMode } from '$lib/stores/modes.svelte';
+  import { getProfile } from '$lib/stores/profile.svelte';
+  const profile = getProfile();
   import { CATEGORIES, SCENES, SOUNDS, SOUND_BY_ID, loc, type CategoryId } from '$lib/audio/catalog';
   import {
     getMixer,
@@ -70,8 +74,13 @@
     <div class="relative p-5 sm:p-7 space-y-5">
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 class="text-2xl sm:text-[28px] font-semibold tracking-tight">{t(`greeting.${period}`)}</h1>
-          <p class="text-sm text-[var(--ca-text-secondary)] mt-1">{t(`greeting.${period}Sub`)}</p>
+          <h1 class="text-2xl sm:text-[28px] font-semibold tracking-tight">{t(`greeting.${period}`)}{profile.name ? `, ${profile.name}!` : ''}</h1>
+          <p class="text-sm text-[var(--ca-text-secondary)] mt-1">
+            {t(`greeting.${period}Sub`)}
+            {#if !profile.name}
+              <a href="/settings" class="ml-1 text-[var(--ca-brand)] hover:underline">{t('profile.addName')}</a>
+            {/if}
+          </p>
         </div>
         {#if breathId}
           <BreathGuide id={breathId} phases={SOUND_BY_ID.get(breathId)!.breath!} />
@@ -106,6 +115,36 @@
           {/each}
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- Immersive modes -->
+  <section class="space-y-2.5">
+    <div class="flex items-baseline justify-between gap-3">
+      <div class="calm-label">{t('mode.title')}</div>
+      <p class="text-xs text-[var(--ca-text-muted)] hidden sm:block">{t('mode.subtitle')}</p>
+    </div>
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      {#each MODES as m (m.id)}
+        <button
+          type="button"
+          onclick={() => openMode(m.id)}
+          class="group relative overflow-hidden rounded-2xl h-28 p-4 text-left text-white border border-white/10 hover:-translate-y-0.5 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ca-brand)]"
+          style:background={m.accent}
+        >
+          <span class="absolute inset-0 bg-gradient-to-t from-black/55 to-transparent" aria-hidden="true"></span>
+          <span class="relative flex h-full flex-col justify-between">
+            <span class="flex items-center justify-between">
+              <Icon name={m.icon} size={18} />
+              <span class="text-[10px] font-semibold uppercase tracking-wider opacity-0 group-hover:opacity-90 transition-opacity">{t('mode.enter')} →</span>
+            </span>
+            <span>
+              <span class="block text-sm font-semibold">{loc(m.name, getLocale())}</span>
+              <span class="block text-[11px] text-white/75 leading-snug line-clamp-1">{loc(m.desc, getLocale())}</span>
+            </span>
+          </span>
+        </button>
+      {/each}
     </div>
   </section>
 

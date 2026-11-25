@@ -8,6 +8,8 @@
     setMaster,
     toggleMasterMute,
     setSleepTimer,
+    setSleepAction,
+    type SleepAction,
     sleepRemaining,
     nameOfCustom,
   } from '$lib/stores/mixer.svelte';
@@ -18,6 +20,12 @@
 
   let sleepOpen = $state(false);
   const SLEEP_OPTIONS = [0, 15, 30, 45, 60, 90];
+  const ACTIONS: { id: SleepAction; icon: string }[] = [
+    { id: 'pause', icon: 'pause' },
+    { id: 'quit', icon: 'x' },
+    { id: 'sleep', icon: 'moon' },
+    { id: 'shutdown', icon: 'power' },
+  ];
 
   const title = $derived.by(() => {
     if (mixer.selected.length === 0) return t('sounds.nothing');
@@ -113,7 +121,7 @@
     {#if sleepOpen}
       <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
       <div
-        class="absolute bottom-12 right-0 w-48 rounded-2xl border border-[var(--ca-border)] bg-[var(--ca-surface)] shadow-xl p-2"
+        class="absolute bottom-12 right-0 w-64 rounded-2xl border border-[var(--ca-border)] bg-[var(--ca-surface)] shadow-xl p-2"
         onclick={(e) => e.stopPropagation()}
       >
         <div class="px-2 pt-1 pb-2 text-[11px] font-semibold text-[var(--ca-text-muted)] uppercase tracking-wider">
@@ -135,6 +143,28 @@
             </button>
           {/each}
         </div>
+        <div class="px-2 pt-3 pb-1.5 text-[11px] font-semibold text-[var(--ca-text-muted)] uppercase tracking-wider">
+          {t('sleep.whenDone')}
+        </div>
+        <div class="space-y-0.5">
+          {#each ACTIONS as a (a.id)}
+            <button
+              type="button"
+              onclick={() => setSleepAction(a.id)}
+              class="w-full flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs text-left transition-colors {mixer.sleepAction === a.id
+                ? 'bg-[var(--ca-brand)]/12 text-[var(--ca-brand)] font-semibold'
+                : 'hover:bg-[var(--ca-surface-subtle)] text-[var(--ca-text-secondary)]'}"
+              aria-pressed={mixer.sleepAction === a.id}
+            >
+              <Icon name={a.icon} size={14} />
+              <span class="flex-1">{t('sleep.action.' + a.id)}</span>
+              {#if mixer.sleepAction === a.id}<Icon name="check" size={13} />{/if}
+            </button>
+          {/each}
+        </div>
+        {#if mixer.sleepAction === 'sleep' || mixer.sleepAction === 'shutdown'}
+          <p class="px-2.5 pt-2 text-[10.5px] leading-snug text-[var(--ca-text-muted)]">{t('sleep.powerNote')}</p>
+        {/if}
       </div>
     {/if}
   </div>

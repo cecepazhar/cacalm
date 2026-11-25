@@ -37,6 +37,9 @@ const state = $state({
   sleepMinutes: 0,
   sleepEndsAt: null as number | null,
   sleepFading: false,
+  sleepAction: 'pause' as SleepAction,
+  powerCountdown: null as number | null,
+  powerCountdownAction: 'sleep' as 'sleep' | 'shutdown',
   now: Date.now(),
   custom: [] as CustomSound[],
   userMixes: [] as UserMix[],
@@ -224,6 +227,13 @@ function applyMix(mix: { id: string; volume: number; pan?: number }[]) {
   persist();
 }
 
+/** Plays an Immersive Mode mix (marks it as the current "scene"). */
+export function applyModeMix(modeId: string, mix: { id: string; volume: number }[]) {
+  applyMix(mix);
+  state.sceneId = 'mode:' + modeId;
+  persist();
+}
+
 export function applyScene(scene: Scene) {
   if (state.sceneId === scene.id && state.playing) {
     pause();
@@ -257,7 +267,30 @@ export function deleteUserMix(id: string) {
 // Sleep timer
 // ---------------------------------------------------------------------------
 
-export function setSleepTimer(minutes: number) {
+/**
+ * What happens when the sleep timer runs out (after the 30 s fade):
+ * - pause:    pause the sounds (default)
+ * - quit:     close CACalm
+ * - sleep:    put the computer to sleep (after a 60 s cancellable countdown)
+ * - shutdown: shut the computer down (after a 60 s cancellable countdown).
+ *             Never remembered — it resets to "pause" after use or app restart.
+ */
+export type SleepAction = 'pause' | 'quit' | 'sleep' | 'shutdown';
+const POWER_COUNTDOWN_SECS = 60;
+const ACTION_KEY = 'cacalm_sleep_action';
+
+export function setSleepAction(action: SleepAction) {
+  state.sleepAction = action;
+  try {
+    // Shutdown is deliberately not persisted.
+    localStorage.setItem(ACTION_KEY, action === 'shutdown' ? 'pause' : action);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function setSleepTimer(minutes: number, action?: SleepAction) {
+  if (action) setSleepAction(action);
   state.sleepMinutes = minutes;
   state.sleepFading = false;
   engine.restoreMaster();
@@ -269,6 +302,57 @@ export function setSleepTimer(minutes: number) {
 export function sleepRemaining(): number {
   if (!state.sleepEndsAt) return 0;
   return Math.max(0, Math.ceil((state.sleepEndsAt - state.now) / 1000));
+}
+
+let countdownTimer: ReturnType<typeof setInterval> | null = null;
+
+export function cancelPowerAction() {
+  if (countdownTimer) clearInterval(countdownTimer);
+  countdownTimer = null;
+  state.powerCountdown = null;
+  if (state.sleepAction === 'shutdown') setSleepAction('pause');
+}
+
+async function runPowerAction(action: 'sleep' | 'shutdown') {
+  if (!isTauri()) return;
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('system_power', { action });
+  } catch (e) {
+    console.warn('power action failed', e);
+  }
+}
+
+function startPowerCountdown(action: 'sleep' | 'shutdown') {
+  state.powerCountdown = POWER_COUNTDOWN_SECS;
+  state.powerCountdownAction = action;
+  // The countdown must be visible to be cancellable, even if CACalm is in the tray.
+  if (isTauri()) {
+    void import('@tauri-apps/api/core').then(({ invoke }) => invoke('window_attention')).catch(() => {});
+  }
+  countdownTimer = setInterval(() => {
+    if (state.powerCountdown === null) return;
+    state.powerCountdown -= 1;
+    if (state.powerCountdown <= 0) {
+      if (countdownTimer) clearInterval(countdownTimer);
+      countdownTimer = null;
+      state.powerCountdown = null;
+      if (action === 'shutdown') setSleepAction('pause');
+      void runPowerAction(action);
+    }
+  }, 1000);
+}
+
+async function runEndAction() {
+  const action = state.sleepAction;
+  if (action === 'quit') {
+    if (isTauri()) {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await invoke('app_quit').catch(() => {});
+    }
+  } else if (action === 'sleep' || action === 'shutdown') {
+    startPowerCountdown(action);
+  }
 }
 
 function sleepTick() {
@@ -286,6 +370,7 @@ function sleepTick() {
       state.sleepEndsAt = null;
       state.sleepMinutes = 0;
       setTimeout(() => engine.restoreMaster(), 1500);
+      void runEndAction();
     });
   }
 }
@@ -335,6 +420,12 @@ export function initMixer() {
   if (initialised || typeof window === 'undefined') return;
   initialised = true;
   restore();
+  try {
+    const a = localStorage.getItem(ACTION_KEY);
+    if (a === 'quit' || a === 'sleep') state.sleepAction = a;
+  } catch {
+    /* ignore */
+  }
   engine.setLoadingListener((id, loading) => {
     state.loading[id] = loading;
   });

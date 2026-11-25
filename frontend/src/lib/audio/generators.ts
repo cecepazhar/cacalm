@@ -1109,6 +1109,86 @@ export const GENERATORS: Record<string, GenDef> = {
     },
   },
   'm-theta': binaural(150, 6),
+
+  // ------------------------------ Music (Romantic mode) ------------------------------
+  // Gentle music box: arpeggios over Cmaj7 → Am7 → Fmaj7 → G6, one chord per 8 s.
+  'r-musicbox': {
+    seconds: 32,
+    rms: 0.08,
+    render: (n, sr, rng) => {
+      const o = stereo(n);
+      const midi = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
+      const chords = [
+        [72, 76, 79, 83, 84, 88],
+        [69, 72, 76, 79, 81, 84],
+        [65, 69, 72, 76, 77, 81],
+        [67, 71, 74, 76, 79, 83],
+      ];
+      const beat = 0.5; // seconds per note
+      const perChord = 8 / beat;
+      for (let c = 0; c < 4; c++) {
+        const notes = chords[c];
+        for (let i = 0; i < perChord; i++) {
+          if (rng.next() < 0.18) continue; // breathe: leave some steps empty
+          // Rising-then-falling pattern with a little randomness.
+          const idx = Math.abs(((i % 10) < 6 ? i % 10 : 10 - (i % 10)) + (rng.next() < 0.25 ? 1 : 0)) % notes.length;
+          const f = midi(notes[idx]);
+          const t0 = (c * 8 + i * beat + rng.range(0, 0.02)) * sr;
+          const a = rng.range(0.55, 1) * (i % 4 === 0 ? 1 : 0.75);
+          const pan = rng.range(-0.35, 0.35);
+          addPartial(o, t0, sr, f, a, 1.4, pan, 0.002);
+          addPartial(o, t0, sr, f * 3.0, a * 0.12, 0.35, pan, 0.001);
+          addPartial(o, t0, sr, f * 5.4, a * 0.04, 0.15, pan, 0.001);
+        }
+      }
+      reverb(o[0], o[1], sr, { wet: 0.35, size: 0.85, damp: 0.4 });
+      return o;
+    },
+  },
+  // Warm pad: slow major-7 chords crossfading (same progression), soft and dark.
+  'r-warmpad': {
+    seconds: 32,
+    rms: 0.08,
+    render: (n, sr) => {
+      const D = n / sr;
+      // Snap every frequency to a whole number of cycles per loop → perfect loop.
+      const snap = (f: number) => Math.round(f * D) / D;
+      const midi = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
+      const chords = [
+        [48, 55, 59, 64, 67],
+        [45, 52, 55, 60, 64],
+        [41, 48, 52, 57, 60],
+        [43, 50, 55, 59, 64],
+      ];
+      const padL = new Float32Array(n);
+      const padR = new Float32Array(n);
+      const seg = n / 4;
+      for (let c = 0; c < 4; c++) {
+        const freqs = chords[c].map((m) => midi(m));
+        for (let j = -seg * 0.5; j < seg * 1.5; j++) {
+          const k = ((Math.floor(c * seg + j) % n) + n) % n;
+          // Raised-cosine window, 16 s wide, overlapping neighbours by 4 s each side.
+          const x = (j + seg * 0.5) / (seg * 2);
+          const w = Math.sin(Math.PI * x) ** 2;
+          let l = 0;
+          let r = 0;
+          for (let q = 0; q < freqs.length; q++) {
+            const fl = snap(freqs[q] + 0.4);
+            const fr = snap(freqs[q] - 0.4);
+            const amp = q === 0 ? 0.5 : 0.32;
+            l += amp * Math.sin((TAU * fl * k) / sr);
+            r += amp * Math.sin((TAU * fr * k) / sr);
+          }
+          padL[k] += l * w;
+          padR[k] += r * w;
+        }
+      }
+      filterCircular(padL, padR, () => [new Biquad(sr).lp(1100, 0.6)]);
+      const out: Out = [padL, padR];
+      reverb(out[0], out[1], sr, { wet: 0.3, size: 0.9, damp: 0.5 });
+      return out;
+    },
+  },
 };
 
 export const GENERATOR_IDS = Object.keys(GENERATORS);

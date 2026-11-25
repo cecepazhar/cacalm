@@ -335,6 +335,156 @@ pub fn read_sound_file(
     Ok(tauri::ipc::Response::new(bytes))
 }
 
+// --- Immersive mode & end-of-timer actions ---
+
+/// Full-screen on/off for Immersive Mode.
+#[tauri::command]
+pub async fn window_set_fullscreen(
+    #[allow(unused_variables)] window: tauri::Window,
+    #[allow(unused_variables)] fullscreen: bool,
+) {
+    #[cfg(desktop)]
+    let _ = window.set_fullscreen(fullscreen);
+}
+
+/// Brings CACalm to the front (out of the tray / minimized) so the user can see and
+/// cancel the power countdown.
+#[tauri::command]
+pub fn window_attention(app: tauri::AppHandle) {
+    open_main_window(&app);
+}
+
+/// Quits CACalm completely (sleep-timer action "close CACalm").
+#[tauri::command]
+pub fn app_quit(app: tauri::AppHandle) {
+    crate::quit_app(&app);
+}
+
+/// The only power actions the UI may request. Never a free-form command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PowerAction {
+    Sleep,
+    Shutdown,
+}
+
+impl PowerAction {
+    pub fn parse(s: &str) -> Option<Self> {
+        match s {
+            "sleep" => Some(Self::Sleep),
+            "shutdown" => Some(Self::Shutdown),
+            _ => None,
+        }
+    }
+}
+
+fn power_command(action: PowerAction) -> std::process::Command {
+    use std::process::Command;
+    #[cfg(target_os = "windows")]
+    {
+        match action {
+            // Application.SetSuspendState(Suspend) is a real sleep (rundll32 SetSuspendState
+            // hibernates instead when hibernation is enabled).
+            PowerAction::Sleep => {
+                let mut c = Command::new("powershell");
+                c.args([
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-Command",
+                    "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Application]::SetSuspendState('Suspend', $false, $false) | Out-Null",
+                ]);
+                c
+            }
+            PowerAction::Shutdown => {
+                let mut c = Command::new("shutdown");
+                c.args(["/s", "/t", "0"]);
+                c
+            }
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        match action {
+            PowerAction::Sleep => {
+                let mut c = Command::new("pmset");
+                c.arg("sleepnow");
+                c
+            }
+            PowerAction::Shutdown => {
+                let mut c = Command::new("osascript");
+                c.args(["-e", "tell application \"System Events\" to shut down"]);
+                c
+            }
+        }
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let mut c = Command::new("systemctl");
+        c.arg(match action {
+            PowerAction::Sleep => "suspend",
+            PowerAction::Shutdown => "poweroff",
+        });
+        c
+    }
+}
+
+/// Puts the computer to sleep or shuts it down when the sleep timer ends.
+/// The UI always shows a 60-second cancellable countdown before calling this.
+#[tauri::command]
+pub fn system_power(action: String) -> Result<(), String> {
+    let action = PowerAction::parse(&action).ok_or_else(|| "unknown power action".to_string())?;
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        power_command(action)
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        power_command(action).spawn().map(|_| ()).map_err(|e| e.to_string())
+    }
+}
+
+// --- Backup & restore ---
+
+const BACKUP_MAX_BYTES: u64 = 2 * 1024 * 1024;
+
+fn check_backup_path(path: &str) -> Result<std::path::PathBuf, String> {
+    let p = std::path::PathBuf::from(path);
+    let is_json = p
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("json"));
+    if !is_json {
+        return Err("backup must be a .json file".into());
+    }
+    Ok(p)
+}
+
+/// Writes a configuration backup chosen by the user in the save dialog.
+#[tauri::command]
+pub fn backup_write(path: String, contents: String) -> Result<(), String> {
+    let p = check_backup_path(&path)?;
+    if contents.len() as u64 > BACKUP_MAX_BYTES {
+        return Err("backup too large".into());
+    }
+    std::fs::write(p, contents).map_err(|e| e.to_string())
+}
+
+/// Reads a configuration backup chosen by the user in the open dialog.
+#[tauri::command]
+pub fn backup_read(path: String) -> Result<String, String> {
+    let p = check_backup_path(&path)?;
+    let len = std::fs::metadata(&p).map_err(|e| e.to_string())?.len();
+    if len > BACKUP_MAX_BYTES {
+        return Err("backup too large".into());
+    }
+    std::fs::read_to_string(p).map_err(|e| e.to_string())
+}
+
 // --- Playback state ---
 
 /// The UI reports whether sound is playing so closing the window can either
@@ -381,6 +531,27 @@ pub fn open_external(url: String) -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn backups_must_be_small_json_files() {
+        let dir = std::env::temp_dir().join(format!("cacalm-backup-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let ok = dir.join("b.json");
+        super::backup_write(ok.to_string_lossy().into(), "{\"a\":1}".into()).unwrap();
+        assert_eq!(super::backup_read(ok.to_string_lossy().into()).unwrap(), "{\"a\":1}");
+        assert!(super::backup_write(dir.join("evil.exe").to_string_lossy().into(), "x".into()).is_err());
+        assert!(super::backup_read(dir.join("x.txt").to_string_lossy().into()).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn power_actions_are_allow_listed() {
+        use super::PowerAction;
+        assert_eq!(PowerAction::parse("sleep"), Some(PowerAction::Sleep));
+        assert_eq!(PowerAction::parse("shutdown"), Some(PowerAction::Shutdown));
+        assert_eq!(PowerAction::parse("rm -rf /"), None);
+        assert!(super::system_power("reboot".into()).is_err());
+    }
+
     #[test]
     fn only_author_urls_are_allowed() {
         assert!(super::is_allowed_url("https://github.com/cecepazhar/cacalm"));
