@@ -72,3 +72,106 @@ body {
   margin: 0;
   padding: 0;
 }
+
+/* ------------------------------------------------------------------ */
+/* CACalm v0.1.2 — calm minimal UI layer                               */
+/* ------------------------------------------------------------------ */
+
+:root {
+  --calm-hero-a: rgba(20, 184, 166, 0.28);
+  --calm-hero-b: rgba(99, 102, 241, 0.18);
+  --calm-hero-c: rgba(56, 189, 248, 0.16);
+  --calm-card-active: rgba(20, 184, 166, 0.08);
+}
+
+html.dark {
+  --calm-hero-a: rgba(20, 184, 166, 0.32);
+  --calm-hero-b: rgba(99, 102, 241, 0.22);
+  --calm-hero-c: rgba(14, 165, 233, 0.16);
+  --calm-card-active: rgba(20, 184, 166, 0.1);
+}
+
+body {
+  font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system, BlinkMacSystemFont, "SF Pro Text", Ubuntu, Cantarell, "Noto Sans", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--ca-border) transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--ca-border); border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* Range slider with a filled track. Set --val (0–100) inline. */
+.calm-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+  --val: 50;
+}
+.calm-range:focus { outline: none; }
+.calm-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--ca-brand) 0%, var(--ca-brand) calc(var(--val) * 1%), var(--ca-surface-subtle) calc(var(--val) * 1%), var(--ca-surface-subtle) 100%);
+}
+.calm-range::-moz-range-track { height: 4px; border-radius: 999px; background: var(--ca-surface-subtle); }
+.calm-range::-moz-range-progress { height: 4px; border-radius: 999px; background: var(--ca-brand); }
+.calm-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 999px;
+  background: #fff;
+  border: 2px solid var(--ca-brand);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease;
+}
+.calm-range::-moz-range-thumb { width: 12px; height: 12px; border-radius: 999px; background: #fff; border: 2px solid var(--ca-brand); }
+.calm-range:hover::-webkit-slider-thumb { transform: scale(1.15); }
+.calm-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--ca-brand-glow); }
+.calm-range:disabled { opacity: 0.4; cursor: default; }
+
+/* Hero aurora */
+.calm-aurora {
+  position: absolute;
+  inset: -40%;
+  background:
+    radial-gradient(40% 40% at 25% 35%, var(--calm-hero-a), transparent 70%),
+    radial-gradient(35% 35% at 75% 30%, var(--calm-hero-b), transparent 70%),
+    radial-gradient(45% 45% at 60% 80%, var(--calm-hero-c), transparent 70%);
+  filter: blur(10px);
+  animation: calm-drift 24s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+.calm-aurora.is-playing { animation-duration: 14s; }
+@keyframes calm-drift {
+  0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
+  50% { transform: translate3d(4%, -3%, 0) scale(1.08) rotate(8deg); }
+  100% { transform: translate3d(-3%, 2%, 0) scale(1.02) rotate(-6deg); }
+}
+
+/* Equalizer bars on playing cards */
+.calm-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; }
+.calm-eq span { width: 3px; border-radius: 2px; background: var(--ca-brand); animation: calm-eq 1.2s ease-in-out infinite; }
+.calm-eq span:nth-child(2) { animation-delay: -0.4s; }
+.calm-eq span:nth-child(3) { animation-delay: -0.8s; }
+@keyframes calm-eq { 0%, 100% { height: 3px; } 50% { height: 12px; } }
+
+/* Gentle breathing pulse for the logo / play button */
+@keyframes calm-breathe { 0%, 100% { transform: scale(1); opacity: 0.55; } 50% { transform: scale(1.18); opacity: 0.15; } }
+.calm-breathe-ring { animation: calm-breathe 6s ease-in-out infinite; }
+
+@keyframes calm-spin { to { transform: rotate(360deg); } }
+.calm-spin { animation: calm-spin 0.9s linear infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .calm-aurora, .calm-eq span, .calm-breathe-ring, .calm-spin { animation: none !important; }
+}

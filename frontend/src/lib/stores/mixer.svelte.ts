@@ -137,15 +137,25 @@ export function toggleSound(id: string) {
   persist();
 }
 
+/** Tells the desktop shell whether sound is playing (close → tray vs. quit). */
+function reportPlaying() {
+  if (!isTauri()) return;
+  void import('@tauri-apps/api/core')
+    .then(({ invoke }) => invoke('set_sound_playing', { playing: state.playing }))
+    .catch(() => {});
+}
+
 export function play() {
   if (state.selected.length === 0) return;
   state.playing = true;
+  reportPlaying();
   engine.restoreMaster();
   for (const id of state.selected) startVoice(id);
 }
 
 export function pause() {
   state.playing = false;
+  reportPlaying();
   engine.stopAll(1.2);
 }
 
@@ -208,6 +218,7 @@ function applyMix(mix: { id: string; volume: number; pan?: number }[]) {
   state.selected = ids;
   state.solo = null;
   state.playing = true;
+  reportPlaying();
   engine.restoreMaster();
   for (const id of ids) startVoice(id);
   persist();
@@ -326,6 +337,10 @@ export function initMixer() {
   });
   void refreshCustomSounds();
   setInterval(sleepTick, 1000);
+  reportPlaying();
+  if (isTauri()) {
+    void import('@tauri-apps/api/event').then(({ listen }) => listen('tray-toggle-sound', () => togglePlay()));
+  }
 }
 
 export function nameOfCustom(id: string): string {

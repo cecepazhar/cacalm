@@ -1,144 +1,154 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { open } from '@tauri-apps/plugin-dialog';
-  import { invoke } from '@tauri-apps/api/core';
-  import { Button, Badge } from '@cecepazhar/caui';
+  import Icon from '$lib/components/Icon.svelte';
   import { showToast } from '$lib/toast';
   import { t } from '$lib/i18n/index.svelte';
+  import { isTauri } from '$lib/env';
+  import { engine } from '$lib/audio/engine';
+  import { getMixer, refreshCustomSounds, toggleSound } from '$lib/stores/mixer.svelte';
 
   interface SoundEntry {
     id: string;
     name: string;
     category: string;
-    duration_secs: number;
     file_name: string;
+    imported_at: number;
   }
 
+  const mixer = getMixer();
   let sounds = $state<SoundEntry[]>([]);
-  let isLoading = $state(false);
+  let busy = $state(false);
 
-  onMount(async () => {
-    await loadSounds();
+  onMount(() => {
+    void load();
   });
 
-  async function loadSounds() {
-    isLoading = true;
+  async function load() {
+    if (!isTauri()) return;
     try {
-      sounds = await invoke<SoundEntry[]>('list_sounds');
+      const { invoke } = await import('@tauri-apps/api/core');
+      const all = await invoke<SoundEntry[]>('list_sounds');
+      sounds = all.filter((s) => s.category === 'imported');
     } catch (e) {
       console.error('Failed to load library:', e);
-    } finally {
-      isLoading = false;
     }
   }
 
   async function handleImport() {
+    if (!isTauri()) {
+      showToast(t('library.desktopOnly'));
+      return;
+    }
+    busy = true;
     try {
-      const path = await open({
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const { invoke } = await import('@tauri-apps/api/core');
+      const picked = await open({
         multiple: true,
-        filters: [
-          { name: 'Audio Files', extensions: ['mp3', 'wav', 'flac', 'ogg', 'opus', 'm4a'] }
-        ]
+        filters: [{ name: 'Audio', extensions: ['mp3', 'wav', 'flac', 'ogg', 'opus', 'm4a'] }],
       });
-
-      if (path) {
-        const paths = Array.isArray(path) ? path : [path];
-        for (const p of paths) {
-          const fileName = p.split('/').pop() || p.split('\\').pop() || 'unknown';
-          const cleanName = fileName.replace(/\.[^/.]+$/, '');
-          try {
-            await invoke('import_sound', {
-              sourcePath: p,
-              name: cleanName,
-              category: 'imported'
-            });
-          } catch (e: unknown) {
-            console.error(`Failed to import ${fileName}:`, e);
-          }
+      if (!picked) return;
+      const paths = Array.isArray(picked) ? picked : [picked];
+      for (const p of paths) {
+        const fileName = p.split(/[\\/]/).pop() || 'audio';
+        try {
+          await invoke('import_sound', { sourcePath: p, name: fileName.replace(/\.[^/.]+$/, ''), category: 'imported' });
+        } catch (e) {
+          console.error(`Failed to import ${fileName}:`, e);
         }
-        await loadSounds();
-        showToast(t('library.importSuccess'), 'success');
       }
+      await load();
+      await refreshCustomSounds();
+      showToast(t('library.importSuccess'), 'success');
     } catch (e) {
-      console.error('Import dialog failed:', e);
+      console.error('Import failed:', e);
+    } finally {
+      busy = false;
     }
   }
 
   async function handleDelete(id: string) {
-    if (confirm(t('library.deleteConfirm'))) {
-      try {
-        await invoke('delete_sound', { id });
-        await loadSounds();
-        showToast(t('library.deleteSuccess'), 'info');
-      } catch (e: unknown) {
-        const msg = (e as { message?: string })?.message || t('library.deleteFailed');
-        showToast(msg, 'error');
-      }
+    if (!confirm(t('library.deleteConfirm'))) return;
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      engine.stop(`custom:${id}`, 0.3);
+      await invoke('delete_sound', { id });
+      await load();
+      await refreshCustomSounds();
+      showToast(t('library.deleteSuccess'));
+    } catch (e: unknown) {
+      showToast((e as { message?: string })?.message || t('library.deleteFailed'), 'error');
     }
   }
 </script>
 
-<div class="flex flex-col h-full overflow-y-auto p-6 space-y-4 bg-[var(--ca-canvas)] text-[var(--ca-text-primary)] max-w-7xl mx-auto w-full">
-  <!-- Header -->
-  <div class="flex items-center justify-between border-b border-[var(--ca-border)] pb-4">
+<div class="max-w-5xl mx-auto w-full px-4 sm:px-6 py-6 space-y-6">
+  <div class="flex flex-wrap items-end justify-between gap-4">
     <div>
-      <h1 class="text-base font-bold text-[var(--ca-text-primary)] flex items-center gap-2">
-        🎵 {t('library.title')}
-        <Badge variant="neutral" size="xs">
-          {t('library.fileCount', { count: sounds.length })}
-        </Badge>
-      </h1>
-      <p class="text-xs text-[var(--ca-text-muted)] mt-0.5">
-        {t('library.subtitle')}
-      </p>
+      <h1 class="text-xl font-semibold tracking-tight">{t('library.title')}</h1>
+      <p class="text-sm text-[var(--ca-text-muted)] mt-1">{t('library.subtitle')}</p>
     </div>
-
-    <Button
-      variant="brand"
-      size="sm"
+    <button
+      type="button"
       onclick={handleImport}
-      disabled={isLoading}
-      class="font-semibold"
+      disabled={busy}
+      class="inline-flex items-center gap-2 rounded-full px-4 py-2 bg-[var(--ca-brand)] text-white text-sm font-semibold shadow-sm hover:brightness-110 disabled:opacity-50"
     >
+      <Icon name="upload" size={16} />
       {t('library.addAudio')}
-    </Button>
+    </button>
   </div>
 
-  <!-- Sounds Grid -->
-  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
-    {#each sounds as sound (sound.id)}
-      <div class="bg-[var(--ca-surface)] border border-[var(--ca-border)] rounded-xl p-4 space-y-3 shadow-xs hover:border-[var(--ca-brand)]/40 transition-colors">
-        <div class="flex items-start justify-between">
-          <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-lg bg-[var(--ca-brand)]/10 text-[var(--ca-brand)] flex items-center justify-center text-lg border border-[var(--ca-brand)]/20">
-              🎵
-            </div>
-            <div>
-              <h3 class="text-xs font-bold text-[var(--ca-text-primary)] truncate max-w-[140px]">{sound.name}</h3>
-              <span class="text-[9px] text-[var(--ca-text-muted)] font-mono uppercase">{sound.category}</span>
-            </div>
+  {#if sounds.length}
+    <div class="text-[11px] uppercase tracking-wider font-semibold text-[var(--ca-text-muted)]">
+      {t('library.fileCount', { count: sounds.length })}
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {#each sounds as s (s.id)}
+        {@const cid = `custom:${s.id}`}
+        {@const inMix = mixer.selected.includes(cid)}
+        <div class="flex items-center gap-3 rounded-2xl border border-[var(--ca-border)]/70 bg-[var(--ca-surface)] p-3.5">
+          <span class="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--ca-surface-subtle)]/80 text-[var(--ca-brand)]">
+            {#if mixer.loading[cid]}
+              <span class="w-4 h-4 rounded-full border-2 border-current/30 border-t-current calm-spin"></span>
+            {:else}
+              <Icon name="music" size={18} />
+            {/if}
+          </span>
+          <div class="min-w-0 flex-1">
+            <div class="text-[13px] font-semibold truncate">{s.name}</div>
+            <div class="text-[11px] text-[var(--ca-text-muted)] truncate font-mono">{s.file_name}</div>
           </div>
-
           <button
             type="button"
-            onclick={() => handleDelete(sound.id)}
-            class="text-[var(--ca-text-muted)] hover:text-[var(--ca-danger)] transition-colors text-xs p-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ca-danger)] rounded"
-            title={t('dialogs.delete')}
-            aria-label={t('dialogs.delete')}
+            onclick={() => toggleSound(cid)}
+            class="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border transition-colors {inMix
+              ? 'bg-[var(--ca-brand)] text-white border-transparent'
+              : 'border-[var(--ca-border)] text-[var(--ca-text-secondary)] hover:text-[var(--ca-brand)] hover:border-[var(--ca-brand)]/50'}"
           >
-            ✕
+            <Icon name={inMix ? 'check' : 'plus'} size={13} />
+            {inMix ? t('library.inMix') : t('library.addToMix')}
+          </button>
+          <button
+            type="button"
+            onclick={() => handleDelete(s.id)}
+            class="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--ca-text-muted)] hover:text-[var(--ca-danger)] hover:bg-[var(--ca-danger)]/10"
+            title={t('dialogs.delete')}
+            aria-label="{t('dialogs.delete')} {s.name}"
+          >
+            <Icon name="trash" size={15} />
           </button>
         </div>
-
-        <div class="bg-[var(--ca-surface-subtle)] p-2 rounded-lg text-[10px] font-mono text-[var(--ca-text-secondary)] flex items-center justify-between">
-          <span>{sound.duration_secs > 0 ? `${Math.floor(sound.duration_secs / 60)}m ${Math.round(sound.duration_secs % 60)}s` : 'Continuous'}</span>
-          <span class="truncate max-w-[140px]">{sound.file_name}</span>
-        </div>
-      </div>
-    {:else}
-      <div class="col-span-full p-10 text-center text-[var(--ca-text-muted)] text-xs bg-[var(--ca-surface)] border border-dashed border-[var(--ca-border)] rounded-xl">
-        {t('library.empty')}
-      </div>
-    {/each}
-  </div>
+      {/each}
+    </div>
+  {:else}
+    <button
+      type="button"
+      onclick={handleImport}
+      class="w-full rounded-3xl border-2 border-dashed border-[var(--ca-border)] p-12 text-center text-sm text-[var(--ca-text-muted)] hover:text-[var(--ca-brand)] hover:border-[var(--ca-brand)]/50 transition-colors"
+    >
+      <Icon name="upload" size={28} class="mx-auto mb-3" />
+      {isTauri() ? t('library.empty') : t('library.desktopOnly')}
+    </button>
+  {/if}
 </div>

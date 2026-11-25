@@ -3,16 +3,18 @@ use crate::settings::AppSettings;
 use tauri::{
     menu::MenuBuilder,
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    AppHandle, Runtime,
+    AppHandle, Emitter, Runtime,
 };
 
 pub const TRAY_ID: &str = "cacalm-tray";
+pub const MENU_ITEM_TOGGLE_SOUND: &str = "toggle_sound";
 pub const MENU_ITEM_TOGGLE_FOCUS: &str = "toggle_focus";
 pub const MENU_ITEM_OPEN_APP: &str = "open_app";
 pub const MENU_ITEM_EXIT: &str = "exit";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TrayAction {
+    ToggleSound,
     ToggleFocus,
     OpenApp,
     Exit,
@@ -21,6 +23,7 @@ pub enum TrayAction {
 impl TrayAction {
     pub fn from_id(id: &str) -> Option<Self> {
         match id {
+            MENU_ITEM_TOGGLE_SOUND => Some(Self::ToggleSound),
             MENU_ITEM_TOGGLE_FOCUS => Some(Self::ToggleFocus),
             MENU_ITEM_OPEN_APP => Some(Self::OpenApp),
             MENU_ITEM_EXIT => Some(Self::Exit),
@@ -86,10 +89,11 @@ pub fn setup_tray<R: Runtime>(
     settings: &AppSettings,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let menu = MenuBuilder::new(app)
-        .text(MENU_ITEM_TOGGLE_FOCUS, "Start/Pause Focus")
-        .text(MENU_ITEM_OPEN_APP, "Open App")
+        .text(MENU_ITEM_TOGGLE_SOUND, "Play / Pause Sounds")
+        .text(MENU_ITEM_TOGGLE_FOCUS, "Start / Pause Focus Timer")
         .separator()
-        .text(MENU_ITEM_EXIT, "Exit")
+        .text(MENU_ITEM_OPEN_APP, "Open CACalm")
+        .text(MENU_ITEM_EXIT, "Quit CACalm")
         .build()?;
 
     let mut builder = TrayIconBuilder::with_id(TRAY_ID)
@@ -107,6 +111,9 @@ pub fn setup_tray<R: Runtime>(
         .on_menu_event(|app, event| {
             if let Some(action) = TrayAction::from_id(event.id.as_ref()) {
                 match action {
+                    TrayAction::ToggleSound => {
+                        let _ = app.emit("tray-toggle-sound", ());
+                    }
                     TrayAction::ToggleFocus => {
                         let _ = crate::toggle_timer_state(app);
                     }
@@ -114,7 +121,7 @@ pub fn setup_tray<R: Runtime>(
                         crate::open_main_window(app);
                     }
                     TrayAction::Exit => {
-                        app.exit(0);
+                        crate::quit_app(app);
                     }
                 }
             }
@@ -167,6 +174,7 @@ mod tests {
             Some(TrayAction::OpenApp)
         );
         assert_eq!(TrayAction::from_id(MENU_ITEM_EXIT), Some(TrayAction::Exit));
+        assert_eq!(TrayAction::from_id(MENU_ITEM_TOGGLE_SOUND), Some(TrayAction::ToggleSound));
         assert_eq!(TrayAction::from_id("unknown_id"), None);
     }
 

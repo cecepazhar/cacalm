@@ -22,6 +22,11 @@ function detectInitialLocale(): Locale {
   } catch {
     // Private mode / storage blocked
   }
+  try {
+    if (typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('id')) return 'id';
+  } catch {
+    // ignore
+  }
   return 'en';
 }
 

@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
-  import { listen } from '@tauri-apps/api/event';
-  import { Badge, LanguageSwitcher, ThemeSwitcher } from '@cecepazhar/caui';
+  import { onMount } from 'svelte';
+  import { LanguageSwitcher, ThemeSwitcher } from '@cecepazhar/caui';
+  import Icon from '$lib/components/Icon.svelte';
   import { showToast } from '$lib/toast';
+  import { isTauri } from '$lib/env';
   import { t, getLocale, setLocale } from '$lib/i18n/index.svelte';
+  import { getTimerPrefs, setChime } from '$lib/stores/timer.svelte';
 
   interface AppSettings {
     tray_enabled: boolean;
@@ -14,39 +15,45 @@
     shortcut_open_app: string;
   }
 
+  const prefs = getTimerPrefs();
+
   let settings = $state<AppSettings>({
     tray_enabled: true,
     shortcuts_enabled: true,
     minimize_to_tray: true,
     shortcut_timer_toggle: 'Ctrl+Alt+C',
-    shortcut_open_app: 'Ctrl+Alt+L'
+    shortcut_open_app: 'Ctrl+Alt+L',
   });
-
   let isLoaded = $state(false);
 
-  onMount(async () => {
-    try {
-      settings = await invoke<AppSettings>('get_settings');
-    } catch (e) {
-      console.error('Failed to load settings:', e);
-      showToast(t('settings.loading'), 'error');
-    } finally {
-      isLoaded = true;
-    }
-
-    const unlisten = await listen<{ tray_enabled: boolean; shortcuts_enabled: boolean }>(
-      'settings-updated',
-      (event) => {
+  onMount(() => {
+    let unlisten: (() => void) | undefined;
+    (async () => {
+      if (!isTauri()) {
+        isLoaded = true;
+        return;
+      }
+      const { invoke } = await import('@tauri-apps/api/core');
+      const { listen } = await import('@tauri-apps/api/event');
+      try {
+        settings = await invoke<AppSettings>('get_settings');
+      } catch (e) {
+        console.error('Failed to load settings:', e);
+      } finally {
+        isLoaded = true;
+      }
+      unlisten = await listen<{ tray_enabled: boolean; shortcuts_enabled: boolean }>('settings-updated', (event) => {
         settings.tray_enabled = event.payload.tray_enabled;
         settings.shortcuts_enabled = event.payload.shortcuts_enabled;
-      }
-    );
-
-    onDestroy(unlisten);
+      });
+    })();
+    return () => unlisten?.();
   });
 
   async function saveSettings() {
+    if (!isTauri()) return;
     try {
+      const { invoke } = await import('@tauri-apps/api/core');
       await invoke('update_settings', { newSettings: settings });
       showToast(t('settings.saveSuccess'), 'success');
     } catch (e) {
@@ -57,6 +64,7 @@
 
   async function toggleTray() {
     settings.tray_enabled = !settings.tray_enabled;
+    settings.minimize_to_tray = settings.tray_enabled;
     await saveSettings();
   }
 
@@ -66,242 +74,124 @@
   }
 
   function validateShortcut(value: string): boolean {
-    if (!isLoaded) return true;
     const parts = value
       .split('+')
       .map((p) => p.trim())
-      .filter((p) => p.length > 0);
-
+      .filter(Boolean);
     if (parts.length < 2) return false;
+    const mods = ['ctrl', 'control', 'alt', 'shift', 'cmd', 'cmdorcontrol', 'super', 'meta'];
+    return parts.some((p) => mods.includes(p.toLowerCase())) && parts.some((p) => !mods.includes(p.toLowerCase()));
+  }
 
-    const validModifiers = [
-      'ctrl', 'control', 'alt', 'shift', 'cmd',
-      'cmdorcontrol', 'super', 'meta'
-    ];
-    const hasModifier = parts.some((p) => validModifiers.includes(p.toLowerCase()));
-    const hasKey = parts.some(
-      (p) => !validModifiers.includes(p.toLowerCase()) && p.length > 0
-    );
-
-    return hasModifier && hasKey;
+  async function commitShortcut(value: string) {
+    if (!validateShortcut(value)) {
+      showToast(t('settings.invalidShortcut'), 'error');
+      return;
+    }
+    await saveSettings();
   }
 </script>
 
-<div class="flex flex-col h-full overflow-y-auto p-6 space-y-4 bg-[var(--ca-canvas)] text-[var(--ca-text-primary)] max-w-7xl mx-auto w-full">
-  <!-- Header -->
-  <div class="flex items-center justify-between border-b border-[var(--ca-border)] pb-4">
+{#snippet toggle(on: boolean, onclick: () => void, label: string)}
+  <button
+    type="button"
+    role="switch"
+    aria-checked={on}
+    aria-label={label}
+    {onclick}
+    class="relative w-11 h-6 rounded-full transition-colors shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ca-brand)] {on
+      ? 'bg-[var(--ca-brand)]'
+      : 'bg-[var(--ca-surface-subtle)]'}"
+  >
+    <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform {on ? 'translate-x-5' : ''}"></span>
+  </button>
+{/snippet}
+
+{#snippet header(icon: string, title: string, desc: string)}
+  <div class="flex items-center gap-3">
+    <span class="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--ca-brand)]/10 text-[var(--ca-brand)]">
+      <Icon name={icon} size={18} />
+    </span>
     <div>
-      <h1 class="text-base font-bold text-[var(--ca-text-primary)] flex items-center gap-2">
-        ⚙️ {t('settings.title')}
-        <Badge variant={isLoaded ? 'brand' : 'neutral'} size="xs">
-          {isLoaded ? t('settings.loaded') : t('settings.loading')}
-        </Badge>
-      </h1>
-      <p class="text-xs text-[var(--ca-text-muted)] mt-0.5">
-        {t('settings.subtitle')}
-      </p>
+      <h2 class="text-sm font-semibold">{title}</h2>
+      <p class="text-xs text-[var(--ca-text-muted)]">{desc}</p>
     </div>
   </div>
+{/snippet}
 
-  <!-- Appearance & Language Card -->
-  <div class="bg-[var(--ca-surface)] border border-[var(--ca-border)] rounded-xl p-5 space-y-4 shadow-xs">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg bg-[var(--ca-brand)]/10 text-[var(--ca-brand)] flex items-center justify-center text-lg border border-[var(--ca-brand)]/20">
-          🎨
-        </div>
-        <div>
-          <h3 class="text-xs font-bold text-[var(--ca-text-primary)]">{t('settings.appearanceTitle')}</h3>
-          <span class="text-[9px] text-[var(--ca-text-muted)] font-mono uppercase">{t('settings.appearanceDesc')}</span>
-        </div>
-      </div>
-    </div>
+<div class="max-w-3xl mx-auto w-full px-4 sm:px-6 py-6 space-y-5">
+  <div>
+    <h1 class="text-xl font-semibold tracking-tight">{t('settings.title')}</h1>
+    <p class="text-sm text-[var(--ca-text-muted)] mt-1">{t('settings.subtitle')}</p>
+  </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-[var(--ca-border)]">
-      <!-- Theme Switcher -->
-      <div class="flex items-center justify-between p-3 rounded-lg bg-[var(--ca-surface-subtle)]">
-        <div>
-          <span class="text-xs font-semibold text-[var(--ca-text-primary)] block">{t('settings.theme')}</span>
-          <span class="text-[10px] text-[var(--ca-text-muted)]">Light / Dark</span>
-        </div>
+  <!-- Appearance -->
+  <section class="rounded-2xl border border-[var(--ca-border)]/70 bg-[var(--ca-surface)] p-5 space-y-4">
+    {@render header('sparkles', t('settings.appearanceTitle'), t('settings.appearanceDesc'))}
+    <div class="grid sm:grid-cols-2 gap-3">
+      <div class="flex items-center justify-between rounded-xl bg-[var(--ca-surface-subtle)]/50 px-4 py-3">
+        <span class="text-sm">{t('settings.theme')}</span>
         <ThemeSwitcher showAccentPicker={false} size="sm" />
       </div>
-
-      <!-- Language Switcher -->
-      <div class="flex items-center justify-between p-3 rounded-lg bg-[var(--ca-surface-subtle)]">
-        <div>
-          <span class="text-xs font-semibold text-[var(--ca-text-primary)] block">{t('settings.language')}</span>
-          <span class="text-[10px] text-[var(--ca-text-muted)]">EN / ID</span>
-        </div>
-        <LanguageSwitcher
-          compact
-          value={getLocale()}
-          onchange={(code) => setLocale(code as 'en' | 'id')}
-          size="sm"
-        />
+      <div class="flex items-center justify-between rounded-xl bg-[var(--ca-surface-subtle)]/50 px-4 py-3">
+        <span class="text-sm">{t('settings.language')}</span>
+        <LanguageSwitcher compact value={getLocale()} onchange={(code) => setLocale(code as 'en' | 'id')} size="sm" />
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- Toggle Tray Card -->
-  <div class="bg-[var(--ca-surface)] border border-[var(--ca-border)] rounded-xl p-5 space-y-4 shadow-xs hover:border-[var(--ca-brand)]/40 transition-colors">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg bg-[var(--ca-brand)]/10 text-[var(--ca-brand)] flex items-center justify-center text-lg border border-[var(--ca-brand)]/20">
-          🖥️
-        </div>
-        <div>
-          <h3 class="text-xs font-bold text-[var(--ca-text-primary)]">{t('settings.trayTitle')}</h3>
-          <span class="text-[9px] text-[var(--ca-text-muted)] font-mono uppercase">{t('settings.trayDesc')}</span>
-        </div>
-      </div>
-
-      <button
-        type="button"
-        onclick={toggleTray}
-        class={`w-11 h-6 p-0.5 rounded-full flex items-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ca-brand)] ${
-          settings.tray_enabled
-            ? 'bg-[var(--ca-brand)] justify-end'
-            : 'bg-[var(--ca-surface-subtle)] border border-[var(--ca-border)] justify-start'
-        }`}
-        title={settings.tray_enabled ? 'Disable Tray' : 'Enable Tray'}
-        aria-label={t('settings.enableTray')}
-      >
-        <span
-          class="w-5 h-5 rounded-full bg-white shadow-xs transition-transform"
-        ></span>
-      </button>
+  <!-- Sound -->
+  <section class="rounded-2xl border border-[var(--ca-border)]/70 bg-[var(--ca-surface)] p-5 space-y-4">
+    {@render header('bell', t('settings.soundTitle'), t('settings.soundDesc'))}
+    <div class="flex items-center justify-between gap-4 rounded-xl bg-[var(--ca-surface-subtle)]/50 px-4 py-3">
+      <span class="text-sm">{t('settings.chime')}</span>
+      {@render toggle(prefs.chime, () => setChime(!prefs.chime), t('settings.chime'))}
     </div>
-    <p class="text-[11px] text-[var(--ca-text-secondary)]">
-      {settings.tray_enabled
-        ? 'Tray icon active. Left click for quick actions, double click to open CACalm.'
-        : 'Tray icon hidden from system tray.'}
-    </p>
-  </div>
+  </section>
 
-  <!-- Keyboard Shortcuts Card -->
-  <div class="bg-[var(--ca-surface)] border border-[var(--ca-border)] rounded-xl p-5 space-y-4 shadow-xs hover:border-[var(--ca-brand)]/40 transition-colors">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg bg-[var(--ca-brand)]/10 text-[var(--ca-brand)] flex items-center justify-center text-lg border border-[var(--ca-brand)]/20">
-          ⌨️
-        </div>
-        <div>
-          <h3 class="text-xs font-bold text-[var(--ca-text-primary)]">{t('settings.shortcutsTitle')}</h3>
-          <span class="text-[9px] text-[var(--ca-text-muted)] font-mono uppercase">{t('settings.shortcutsDesc')}</span>
-        </div>
+  {#if isTauri()}
+    <!-- Background playback -->
+    <section class="rounded-2xl border border-[var(--ca-border)]/70 bg-[var(--ca-surface)] p-5 space-y-4">
+      <div class="flex items-center justify-between gap-4">
+        {@render header('moon', t('settings.trayTitle'), t('settings.trayDesc'))}
+        {@render toggle(settings.tray_enabled, toggleTray, t('settings.enableTray'))}
       </div>
-
-      <button
-        type="button"
-        onclick={toggleShortcuts}
-        class={`w-11 h-6 p-0.5 rounded-full flex items-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ca-brand)] ${
-          settings.shortcuts_enabled
-            ? 'bg-[var(--ca-brand)] justify-end'
-            : 'bg-[var(--ca-surface-subtle)] border border-[var(--ca-border)] justify-start'
-        }`}
-        title={settings.shortcuts_enabled ? 'Disable Shortcuts' : 'Enable Shortcuts'}
-        aria-label={t('settings.enableShortcuts')}
-      >
-        <span
-          class="w-5 h-5 rounded-full bg-white shadow-xs transition-transform"
-        ></span>
-      </button>
-    </div>
-
-    {#if settings.shortcuts_enabled}
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-[var(--ca-border)]">
-        <!-- Timer Toggle -->
-        <div class="space-y-2">
-          <label for="shortcut-timer" class="text-[10px] font-bold uppercase tracking-wider text-[var(--ca-text-secondary)] block">
-            {t('settings.timerToggleShortcut')}
-          </label>
-          <input
-            id="shortcut-timer"
-            type="text"
-            bind:value={settings.shortcut_timer_toggle}
-            class="w-full bg-[var(--ca-surface-subtle)] border border-[var(--ca-border)] rounded-lg px-3 py-2 text-xs font-mono text-[var(--ca-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--ca-brand)]"
-            placeholder="Ctrl+Alt+C"
-            oninput={() => {
-              if (!validateShortcut(settings.shortcut_timer_toggle)) {
-                showToast(t('settings.invalidShortcut'), 'error');
-              }
-            }}
-            onblur={saveSettings}
-          />
-          <p class="text-[10px] text-[var(--ca-text-muted)]">
-            E.g. Ctrl+Alt+C, Cmd+Shift+P
-          </p>
-        </div>
-
-        <!-- Open App -->
-        <div class="space-y-2">
-          <label for="shortcut-open" class="text-[10px] font-bold uppercase tracking-wider text-[var(--ca-text-secondary)] block">
-            {t('settings.openAppShortcut')}
-          </label>
-          <input
-            id="shortcut-open"
-            type="text"
-            bind:value={settings.shortcut_open_app}
-            class="w-full bg-[var(--ca-surface-subtle)] border border-[var(--ca-border)] rounded-lg px-3 py-2 text-xs font-mono text-[var(--ca-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--ca-brand)]"
-            placeholder="Ctrl+Alt+L"
-            oninput={() => {
-              if (!validateShortcut(settings.shortcut_open_app)) {
-                showToast(t('settings.invalidShortcut'), 'error');
-              }
-            }}
-            onblur={saveSettings}
-          />
-          <p class="text-[10px] text-[var(--ca-text-muted)]">
-            Opens and focuses CACalm window.
-          </p>
-        </div>
-      </div>
-    {:else}
-      <p class="text-[11px] text-[var(--ca-text-muted)] pt-2 border-t border-[var(--ca-border)]">
-        Global shortcuts disabled.
+      <p class="text-xs text-[var(--ca-text-secondary)]">
+        {settings.tray_enabled ? t('settings.trayOn') : t('settings.trayOff')}
       </p>
-    {/if}
-  </div>
+    </section>
 
-  <!-- Minimize to Tray Card -->
-  <div class="bg-[var(--ca-surface)] border border-[var(--ca-border)] rounded-xl p-5 space-y-4 shadow-xs hover:border-[var(--ca-brand)]/40 transition-colors">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-lg bg-[var(--ca-brand)]/10 text-[var(--ca-brand)] flex items-center justify-center text-lg border border-[var(--ca-brand)]/20">
-          📥
-        </div>
-        <div>
-          <h3 class="text-xs font-bold text-[var(--ca-text-primary)]">{t('settings.minimizeToTray')}</h3>
-          <span class="text-[9px] text-[var(--ca-text-muted)] font-mono uppercase">
-            {t('settings.minimizeToTrayDesc')}
-          </span>
-        </div>
+    <!-- Shortcuts -->
+    <section class="rounded-2xl border border-[var(--ca-border)]/70 bg-[var(--ca-surface)] p-5 space-y-4">
+      <div class="flex items-center justify-between gap-4">
+        {@render header('keyboard', t('settings.shortcutsTitle'), t('settings.shortcutsDesc'))}
+        {@render toggle(settings.shortcuts_enabled, toggleShortcuts, t('settings.enableShortcuts'))}
       </div>
-
-      <button
-        type="button"
-        onclick={() => {
-          settings.minimize_to_tray = !settings.minimize_to_tray;
-          saveSettings();
-        }}
-        class={`w-11 h-6 p-0.5 rounded-full flex items-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ca-brand)] ${
-          settings.minimize_to_tray
-            ? 'bg-[var(--ca-brand)] justify-end'
-            : 'bg-[var(--ca-surface-subtle)] border border-[var(--ca-border)] justify-start'
-        }`}
-        title={settings.minimize_to_tray ? 'Disable minimize to tray' : 'Enable minimize to tray'}
-        aria-label={t('settings.minimizeToTray')}
-      >
-        <span
-          class="w-5 h-5 rounded-full bg-white shadow-xs transition-transform"
-        ></span>
-      </button>
-    </div>
-    <p class="text-[11px] text-[var(--ca-text-secondary)]">
-      {settings.minimize_to_tray
-        ? 'Closing window keeps CACalm alive and playing in background.'
-        : 'Closing window exits CACalm completely.'}
-    </p>
-  </div>
+      {#if settings.shortcuts_enabled && isLoaded}
+        <div class="grid sm:grid-cols-2 gap-3">
+          <label class="space-y-1.5 block">
+            <span class="text-xs text-[var(--ca-text-secondary)]">{t('settings.timerToggleShortcut')}</span>
+            <input
+              type="text"
+              bind:value={settings.shortcut_timer_toggle}
+              onblur={() => commitShortcut(settings.shortcut_timer_toggle)}
+              class="w-full rounded-xl bg-[var(--ca-surface-subtle)]/50 border border-[var(--ca-border)] px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[var(--ca-brand)] select-text"
+              placeholder="Ctrl+Alt+C"
+            />
+          </label>
+          <label class="space-y-1.5 block">
+            <span class="text-xs text-[var(--ca-text-secondary)]">{t('settings.openAppShortcut')}</span>
+            <input
+              type="text"
+              bind:value={settings.shortcut_open_app}
+              onblur={() => commitShortcut(settings.shortcut_open_app)}
+              class="w-full rounded-xl bg-[var(--ca-surface-subtle)]/50 border border-[var(--ca-border)] px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[var(--ca-brand)] select-text"
+              placeholder="Ctrl+Alt+L"
+            />
+          </label>
+        </div>
+        <p class="text-[11px] text-[var(--ca-text-muted)]">{t('settings.shortcutExample')}</p>
+      {/if}
+    </section>
+  {/if}
 </div>

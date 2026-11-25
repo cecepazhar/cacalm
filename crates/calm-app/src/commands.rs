@@ -335,6 +335,15 @@ pub fn read_sound_file(
     Ok(tauri::ipc::Response::new(bytes))
 }
 
+// --- Playback state ---
+
+/// The UI reports whether sound is playing so closing the window can either
+/// keep playing in the tray (playing) or quit cleanly (paused).
+#[tauri::command]
+pub fn set_sound_playing(playing: bool) {
+    crate::SOUND_PLAYING.store(playing, std::sync::atomic::Ordering::SeqCst);
+}
+
 // --- External links ---
 
 /// Only links owned by the author may be opened from the UI.

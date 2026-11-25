@@ -1,5 +1,6 @@
 use calm_core::{PomodoroTimer, PresetManager, SoundLibrary};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::Manager;
 
 pub mod commands;
@@ -9,11 +10,27 @@ pub mod tray;
 
 pub use commands::{
     delete_preset, delete_sound, get_app_version, get_settings, get_timer_snapshot, import_sound,
-    list_presets, list_sounds, load_preset, minimize_to_tray, open_external, open_main_window, read_sound_file,
+    list_presets, list_sounds, load_preset, minimize_to_tray, open_external, set_sound_playing, open_main_window, read_sound_file,
     save_preset, set_shortcuts_enabled, set_tray_enabled, timer_pause, timer_reset, timer_resume,
     timer_skip, timer_tick, toggle_shortcuts, toggle_timer_state, toggle_tray, update_settings,
     window_close, window_is_maximized, window_maximize, window_minimize, window_start_dragging,
 };
+
+/// Set when the user explicitly quits, so the close-to-tray handler lets the
+/// window close instead of hiding it.
+pub static QUITTING: AtomicBool = AtomicBool::new(false);
+
+/// Whether the WebView currently has sounds playing (reported by the UI).
+pub static SOUND_PLAYING: AtomicBool = AtomicBool::new(false);
+
+/// Fully quits CACalm (tray "Quit").
+pub fn quit_app<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    QUITTING.store(true, Ordering::SeqCst);
+    for (_, w) in app.webview_windows() {
+        let _ = w.destroy();
+    }
+    app.exit(0);
+}
 
 /// Tauri managed state — holds the live engine instances and app settings.
 pub struct AppState {
@@ -74,11 +91,15 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let app = window.app_handle();
                 let state = app.state::<AppState>();
-                let should_minimize = state
-                    .settings
-                    .lock()
-                    .map(|s| s.minimize_to_tray && s.tray_enabled)
-                    .unwrap_or(false);
+                // Keep running in the tray only while sound is playing; a paused
+                // CACalm simply quits when its window is closed.
+                let should_minimize = !QUITTING.load(Ordering::SeqCst)
+                    && SOUND_PLAYING.load(Ordering::SeqCst)
+                    && state
+                        .settings
+                        .lock()
+                        .map(|s| s.minimize_to_tray && s.tray_enabled)
+                        .unwrap_or(false);
 
                 if should_minimize {
                     api.prevent_close();
@@ -110,6 +131,7 @@ pub fn run() {
             commands::minimize_to_tray,
             commands::read_sound_file,
             commands::open_external,
+            commands::set_sound_playing,
             commands::window_start_dragging,
             commands::window_minimize,
             commands::window_maximize,
